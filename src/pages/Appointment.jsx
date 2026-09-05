@@ -1,9 +1,16 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar } from 'lucide-react';
+import { Calendar, MapPin, Phone, Clock } from 'lucide-react';
 import AppointmentForm from '../components/AppointmentForm';
+import { fetchDoctor } from '../api/api';
 
 export default function Appointment() {
   const navigate = useNavigate();
+  const [doctor, setDoctor] = useState(null);
+
+  useEffect(() => {
+    fetchDoctor().then(setDoctor).catch(() => {});
+  }, []);
 
   return (
     <div>
@@ -25,20 +32,29 @@ export default function Appointment() {
                 <div className="card-body">
                   <h3>Clinic Information</h3>
                   <div className="appt-info-item">
-                    <strong>Address</strong>
-                    <p>123 Medical Plaza, Suite 200, New York, NY 10001</p>
+                    <MapPin size={16} />
+                    <div>
+                      <strong>Address</strong>
+                      <p>{doctor?.address || '123 Medical Plaza, Suite 200, New York, NY 10001'}</p>
+                    </div>
                   </div>
                   <div className="appt-info-item">
-                    <strong>Phone</strong>
-                    <p>+1 (555) 123-4567</p>
+                    <Phone size={16} />
+                    <div>
+                      <strong>Phone</strong>
+                      <p>{doctor?.phone || '+1 (555) 123-4567'}</p>
+                    </div>
                   </div>
                   <div className="appt-info-item">
-                    <strong>Hours</strong>
-                    <p>Monday–Friday: 9:00 AM – 5:00 PM</p>
-                    <p>Saturday: 9:00 AM – 1:00 PM</p>
-                    <p>Sunday: Closed</p>
+                    <Clock size={16} />
+                    <div>
+                      <strong>Hours</strong>
+                      <p>Monday–Friday: 9:00 AM – 5:00 PM</p>
+                      <p>Saturday: 9:00 AM – 1:00 PM</p>
+                      <p>Sunday: Closed</p>
+                    </div>
                   </div>
-                  <div className="appt-info-item">
+                  <div className="appt-info-note">
                     <strong>What to Bring</strong>
                     <p>Photo ID, insurance card, list of current medications, and any relevant medical records.</p>
                   </div>
@@ -54,9 +70,13 @@ export default function Appointment() {
         .page-hero h1 { font-size: 2.5rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
         .page-hero p { color: var(--color-text-light); font-size: 1.1rem; }
         .appt-page-grid { display: grid; grid-template-columns: 1fr 380px; gap: 3rem; align-items: start; }
-        .appt-info-item { margin-bottom: 1.25rem; }
+        .appt-info-item { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1.25rem; }
+        .appt-info-item svg { color: var(--color-primary); flex-shrink: 0; margin-top: 0.25rem; }
         .appt-info-item strong { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; }
         .appt-info-item p { color: var(--color-text-light); font-size: 0.9rem; line-height: 1.5; }
+        .appt-info-note { background: var(--color-bg-alt); padding: 1rem; border-radius: var(--radius-md); margin-top: 1rem; }
+        .appt-info-note strong { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; }
+        .appt-info-note p { color: var(--color-text-light); font-size: 0.85rem; line-height: 1.5; }
         .appt-info .card { position: sticky; top: 90px; }
         @media (max-width: 768px) {
           .appt-page-grid { grid-template-columns: 1fr; }
