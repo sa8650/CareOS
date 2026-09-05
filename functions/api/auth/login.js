@@ -1,6 +1,5 @@
 import { parseBody, json, checkRateLimit } from '../_middleware.js';
 
-// Simple hash function using Web Crypto API (available in Workers)
 async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
@@ -33,14 +32,18 @@ export async function onRequestPost(context) {
     return json({ error: 'Invalid credentials' }, 401);
   }
 
-  return json(
-    { id: admin.id, name: admin.name, email: admin.email, role: admin.role },
-    200,
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        'Set-Cookie': `session=${admin.id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`,
-      },
-    }
-  );
+  const responseData = JSON.stringify({
+    id: admin.id,
+    name: admin.name,
+    email: admin.email,
+    role: admin.role
+  });
+
+  return new Response(responseData, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Set-Cookie': `session=${admin.id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`,
+    },
+  });
 }
