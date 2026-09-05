@@ -18,18 +18,24 @@ export async function onRequestPost(context) {
     .bind(service_id).first();
   if (!service) return json({ error: 'Service not found or inactive' }, 400);
 
-  // 2. Validate date is not in the past
+  // 2. Validate date is not in the past and within30 days
   const appointmentDate = new Date(date + 'T00:00:00');
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const maxDate = new Date(today);
+  maxDate.setDate(maxDate.getDate() + 30);
+
   if (appointmentDate < today) {
     return json({ error: 'Cannot book appointments in the past' }, 400);
   }
+  if (appointmentDate > maxDate) {
+    return json({ error: 'Cannot book more than 30 days in advance' }, 400);
+  }
 
-  // 3. Check working hours
+  // 3. Check working hours and daily limit
   const dayOfWeek = appointmentDate.getDay();
   const availability = await db.prepare(
-    'SELECT start_time, end_time FROM availability WHERE day_of_week = ? AND is_active = 1'
+    'SELECT start_time, end_time, max_appointments FROM availability WHERE day_of_week = ? AND is_active = 1'
   ).bind(dayOfWeek).first();
 
   if (!availability) {
@@ -41,7 +47,16 @@ export async function onRequestPost(context) {
     return json({ error: 'Requested time is outside working hours' }, 400);
   }
 
-  // 5. Check for existing appointments at this time
+  // 5. Check daily appointment limit
+  const dailyCount = await db.prepare(
+    "SELECT COUNT(*) as count FROM appointments WHERE appointment_date = ? AND status NOT IN ('cancelled', 'rejected')"
+  ).bind(date).first();
+
+  if (dailyCount && dailyCount.count >= availability.max_appointments) {
+    return json({ error: 'Daily appointment limit reached. Please choose another date.' }, 400);
+  }
+
+  // 6. Check for existing appointments at this time (conflict check)
   const conflict = await db.prepare(
     `SELECT id FROM appointments
      WHERE appointment_date = ? AND status NOT IN ('cancelled', 'rejected')
@@ -52,7 +67,7 @@ export async function onRequestPost(context) {
     return json({ error: 'This time slot is already booked' }, 400);
   }
 
-  // 6. Create or find patient
+  // 7. Create or find patient
   let patient = await db.prepare('SELECT id FROM patients WHERE phone = ?').bind(phone).first();
   if (!patient) {
     const result = await db.prepare(
@@ -64,12 +79,12 @@ export async function onRequestPost(context) {
       .bind(name, email || null, patient.id).run();
   }
 
-  // 7. Generate reference number
+  // 8. Generate reference number
   const year = new Date().getFullYear();
   const count = await db.prepare('SELECT COUNT(*) as c FROM appointments').first();
   const ref = `APT-${year}-${String((count?.c || 0) + 1).padStart(6, '0')}`;
 
-  // 8. Create appointment
+  // 9. Create appointment
   await db.prepare(
     `INSERT INTO appointments (reference, patient_id, service_id, appointment_date, start_time, end_time, status, message)
      VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`
