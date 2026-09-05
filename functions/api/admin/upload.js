@@ -5,9 +5,8 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function onRequestPost(context) {
   const request = context.request;
-
-  // Check content type
   const contentType = request.headers.get('content-type') || '';
+  
   if (!contentType.includes('multipart/form-data')) {
     return json({ error: 'Expected multipart form data' }, 400);
   }
@@ -20,12 +19,10 @@ export async function onRequestPost(context) {
     return json({ error: 'No file provided' }, 400);
   }
 
-  // Validate file type
   if (!ALLOWED_TYPES.includes(file.type)) {
     return json({ error: 'Invalid file type. Allowed: JPG, PNG, WebP, GIF' }, 400);
   }
 
-  // Validate file size
   if (file.size > MAX_SIZE) {
     return json({ error: 'File too large. Maximum 5MB' }, 400);
   }
@@ -35,19 +32,16 @@ export async function onRequestPost(context) {
     return json({ error: 'R2 storage not configured' }, 500);
   }
 
-  // Generate unique key
   const ext = file.name.split('.').pop() || 'jpg';
   const key = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-  // Upload to R2
   const arrayBuffer = await file.arrayBuffer();
   await R2.put(key, arrayBuffer, {
     httpMetadata: { contentType: file.type },
   });
 
-  // Return the public URL
-  // In production, this would be your R2 public bucket URL
-  const url = `/cdn-cgi/imagedelivery/${key}`;
+  // Return URL that goes through our serving function
+  const url = `/api/images/${key}`;
 
   return json({ url, key });
 }
