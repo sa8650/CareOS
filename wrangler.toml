@@ -7,7 +7,7 @@ ENVIRONMENT = "production"
 [[d1_databases]]
 binding = "DB"
 database_name = "doctor-db"
-database_id = "YOUR_D1_DATABASE_ID"
+database_id = "590a6ede-a027-4b9a-ab4a-41a90f607a2b"
 
 [[r2_buckets]]
 binding = "R2"
