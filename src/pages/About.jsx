@@ -6,7 +6,7 @@ export default function About() {
   const [doctor, setDoctor] = useState(null);
   useEffect(() => { fetchDoctor().then(setDoctor).catch(() => {}); }, []);
 
-  const qualifications = [
+  const qualifications = doctor?.qualifications || [
     'MD - Harvard Medical School',
     'Residency - Johns Hopkins Dermatology',
     'Fellowship - Mohs Surgery, NYU',
@@ -14,16 +14,16 @@ export default function About() {
     'Fellow - American Academy of Dermatology',
   ];
 
+  const specializations = doctor?.specializations || [
+    'Medical Dermatology', 'Cosmetic Dermatology', 'PRP Therapy',
+    'Laser Treatments', 'Mohs Surgery', 'Pediatric Dermatology',
+    'Skin Cancer Screening', 'Acne Treatment', 'Anti-Aging Treatments',
+  ];
+
   const experience = [
     { year: '2011–Present', role: 'Private Practice', org: 'Mitchell Dermatology Clinic', desc: 'Founder and lead dermatologist serving 10,000+ patients.' },
     { year: '2009–2011', role: 'Attending Dermatologist', org: 'NYU Langone Health', desc: 'Specialized in complex medical dermatology cases.' },
     { year: '2007–2009', role: 'Clinical Fellow', org: 'Mayo Clinic', desc: 'Advanced training in cosmetic and surgical dermatology.' },
-  ];
-
-  const specializations = [
-    'Medical Dermatology', 'Cosmetic Dermatology', 'PRP Therapy',
-    'Laser Treatments', 'Mohs Surgery', 'Pediatric Dermatology',
-    'Skin Cancer Screening', 'Acne Treatment', 'Anti-Aging Treatments',
   ];
 
   return (
@@ -39,16 +39,19 @@ export default function About() {
         <div className="container">
           <div className="about-grid">
             <div className="about-photo">
-              <div className="about-photo-placeholder">
-                <div className="about-photo-inner" />
-              </div>
+              {doctor?.profile_image ? (
+                <img src={doctor.profile_image} alt={doctor.name} className="about-page-photo" />
+              ) : (
+                <div className="about-photo-placeholder">
+                  <div className="about-photo-inner" />
+                </div>
+              )}
             </div>
             <div className="about-bio">
-              <h2>Dr. Sarah Mitchell, MD, FAAD</h2>
-              <span className="about-title">Board-Certified Dermatologist</span>
-              <p>Dr. Sarah Mitchell is a board-certified dermatologist with over 15 years of experience in medical, surgical, and cosmetic dermatology. She founded Mitchell Dermatology Clinic with a vision to provide personalized, evidence-based skin care to patients of all ages.</p>
-              <p>Known for her meticulous approach and warm bedside manner, Dr. Mitchell takes the time to listen to each patient's concerns and develop customized treatment plans. She believes in combining the latest dermatological advances with proven therapies to achieve optimal results.</p>
-              <p>Dr. Mitchell is actively involved in dermatological research and has published numerous papers in peer-reviewed journals. She is a frequent speaker at national and international dermatology conferences.</p>
+              <h2>{doctor?.name || 'Dr. Sarah Mitchell'}, MD, FAAD</h2>
+              <span className="about-title">{doctor?.title || 'Board-Certified Dermatologist'}</span>
+              <p>{doctor?.bio || 'Dr. Sarah Mitchell is a board-certified dermatologist with over 15 years of experience in medical, surgical, and cosmetic dermatology. She founded Mitchell Dermatology Clinic with a vision to provide personalized, evidence-based skin care to patients of all ages.'}</p>
+              <p>Known for her meticulous approach and warm bedside manner, Dr. Mitchell takes the time to listen to each patient's concerns and develop customized treatment plans.</p>
             </div>
           </div>
         </div>
@@ -61,7 +64,7 @@ export default function About() {
             {qualifications.map((q, i) => (
               <div key={i} className="qual-item fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
                 <GraduationCap size={20} className="qual-icon" />
-                <span>{q}</span>
+                <span>{typeof q === 'string' ? q : q}</span>
               </div>
             ))}
           </div>
@@ -92,7 +95,7 @@ export default function About() {
           <h2 className="section-title" style={{ textAlign: 'center' }}>Specializations</h2>
           <div className="spec-tags">
             {specializations.map((s, i) => (
-              <span key={i} className="spec-tag">{s}</span>
+              <span key={i} className="spec-tag">{typeof s === 'string' ? s : s}</span>
             ))}
           </div>
         </div>
@@ -107,6 +110,12 @@ export default function About() {
         .page-hero p { color: var(--color-text-light); font-size: 1.1rem; }
 
         .about-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 4rem; align-items: start; }
+        .about-photo { position: relative; border-radius: 2rem; overflow: hidden; }
+        .about-page-photo {
+          width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 2rem;
+          mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+          -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+        }
         .about-photo-placeholder {
           width: 100%; aspect-ratio: 3/4; background: linear-gradient(135deg, #dbeafe, #e0f2fe);
           border-radius: 2rem; display: flex; align-items: center; justify-content: center;
