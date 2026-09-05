@@ -17,8 +17,15 @@ export async function onRequestPut(context) {
 
   for (const slot of body) {
     await db.prepare(
-      'INSERT INTO availability (day_of_week, start_time, end_time, slot_duration, is_active) VALUES (?, ?, ?, ?, ?)'
-    ).bind(slot.day_of_week, slot.start_time, slot.end_time, slot.slot_duration || 30, slot.is_active ?? 1).run();
+      'INSERT INTO availability (day_of_week, start_time, end_time, slot_duration, max_appointments, is_active) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(
+      slot.day_of_week, 
+      slot.start_time, 
+      slot.end_time, 
+      slot.slot_duration || 30, 
+      slot.max_appointments || 10,
+      slot.is_active ?? 1
+    ).run();
   }
 
   return json({ success: true });
