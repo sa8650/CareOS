@@ -44,10 +44,14 @@ export default function Home() {
           </div>
           <div className="hero-image fade-in">
             <div className="hero-img-wrapper">
-              <div className="hero-img-placeholder">
-                <div className="hero-img-circle" />
-                <span className="hero-img-text">Dr. Sarah Mitchell</span>
-              </div>
+              {doctor?.profile_image ? (
+                <img src={doctor.profile_image} alt={doctor.name} className="hero-doctor-photo" />
+              ) : (
+                <div className="hero-img-placeholder">
+                  <div className="hero-img-circle" />
+                  <span className="hero-img-text">Dr. Sarah Mitchell</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -70,9 +74,13 @@ export default function Home() {
       <section className="section">
         <div className="container about-preview">
           <div className="about-preview-img">
-            <div className="about-img-placeholder">
-              <div className="about-img-inner" />
-            </div>
+            {doctor?.profile_image ? (
+              <img src={doctor.profile_image} alt={doctor.name} className="about-doctor-photo" />
+            ) : (
+              <div className="about-img-placeholder">
+                <div className="about-img-inner" />
+              </div>
+            )}
           </div>
           <div className="about-preview-content">
             <span className="section-label">About Dr. Mitchell</span>
@@ -100,6 +108,7 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Rest of the page remains same */}
       {/* Specializations */}
       <section className="section section-alt">
         <div className="container">
@@ -281,7 +290,13 @@ export default function Home() {
         .hero h1 { font-size: 3.5rem; line-height: 1.1; margin-bottom: 1.25rem; color: var(--color-text); }
         .hero p { font-size: 1.15rem; color: var(--color-text-light); margin-bottom: 2rem; max-width: 540px; }
         .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
-        .hero-img-wrapper { position: relative; }
+        .hero-img-wrapper { position: relative; border-radius: 2rem; overflow: hidden; }
+        .hero-doctor-photo {
+          width: 100%; aspect-ratio: 4/5; object-fit: cover;
+          filter: drop-shadow(0 20px 40px rgba(0,0,0,0.1));
+          mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+          -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+        }
         .hero-img-placeholder {
           width: 100%; aspect-ratio: 4/5; background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
           border-radius: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -293,6 +308,30 @@ export default function Home() {
         }
         .hero-img-text { color: white; font-size: 1.25rem; font-weight: 700; margin-top: 1rem; }
 
+        /* About Preview */
+        .about-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+        .about-preview-img { position: relative; border-radius: 2rem; overflow: hidden; }
+        .about-doctor-photo {
+          width: 100%; aspect-ratio: 3/4; object-fit: cover;
+          border-radius: 2rem;
+          mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+          -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+        }
+        .about-img-placeholder {
+          width: 100%; aspect-ratio: 3/4; background: linear-gradient(135deg, #dbeafe, #e0f2fe);
+          border-radius: 2rem; display: flex; align-items: center; justify-content: center;
+        }
+        .about-img-inner { width: 80%; height: 80%; border-radius: 1.5rem; background: linear-gradient(135deg, var(--color-primary-light), #bfdbfe); }
+        .about-preview-content { }
+        .section-label {
+          display: inline-block; color: var(--color-primary); font-weight: 600; font-size: 0.85rem;
+          text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;
+        }
+        .about-preview-content p { color: var(--color-text-light); margin-bottom: 1rem; font-size: 1.05rem; }
+        .about-highlights { margin: 1.5rem 0; }
+        .about-highlight { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-weight: 500; }
+        .about-highlight svg { color: var(--color-primary); }
+
         @media (max-width: 768px) {
           .hero { padding: 6rem 0 3rem; }
           .hero-inner { grid-template-columns: 1fr; text-align: center; }
@@ -300,6 +339,7 @@ export default function Home() {
           .hero p { max-width: 100%; }
           .hero-actions { justify-content: center; }
           .hero-image { order: -1; max-width: 300px; margin: 0 auto; }
+          .about-preview { grid-template-columns: 1fr; gap: 2rem; }
         }
 
         /* Stats */
@@ -310,28 +350,6 @@ export default function Home() {
         .stat-value { font-size: 2rem; font-weight: 800; }
         .stat-label { font-size: 0.9rem; opacity: 0.9; }
         @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 1.5rem; } }
-
-        /* About Preview */
-        .about-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
-        .about-preview-img { position: relative; }
-        .about-img-placeholder {
-          width: 100%; aspect-ratio: 3/4; background: linear-gradient(135deg, #dbeafe, #e0f2fe);
-          border-radius: 2rem; display: flex; align-items: center; justify-content: center;
-        }
-        .about-img-inner {
-          width: 80%; height: 80%; border-radius: 1.5rem;
-          background: linear-gradient(135deg, var(--color-primary-light), #bfdbfe);
-        }
-        .about-preview-content { }
-        .section-label {
-          display: inline-block; color: var(--color-primary); font-weight: 600; font-size: 0.85rem;
-          text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;
-        }
-        .about-preview-content p { color: var(--color-text-light); margin-bottom: 1rem; font-size: 1.05rem; }
-        .about-highlights { margin: 1.5rem 0; }
-        .about-highlight { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-weight: 500; }
-        .about-highlight svg { color: var(--color-primary); }
-        @media (max-width: 768px) { .about-preview { grid-template-columns: 1fr; gap: 2rem; } }
 
         /* Section Alt */
         .section-alt { background: var(--color-bg-alt); }
