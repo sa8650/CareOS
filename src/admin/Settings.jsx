@@ -42,7 +42,7 @@ export default function Settings() {
   };
 
   const addAvail = () => {
-    setAvailability(a => [...a, { day_of_week: 1, start_time: '09:00', end_time: '17:00', slot_duration: 30, is_active: 1 }]);
+    setAvailability(a => [...a, { day_of_week: 1, start_time: '09:00', end_time: '17:00', slot_duration: 30, max_appointments: 10, is_active: 1 }]);
   };
 
   const removeAvail = (i) => {
@@ -87,7 +87,7 @@ export default function Settings() {
                 <input type="email" className="form-input" value={settings.email || ''} onChange={e => updateSetting('email', e.target.value)} />
               </div>
               <div className="form-group">
-                <label className="form-label">Slot Duration (min)</label>
+                <label className="form-label">Default Slot Duration (min)</label>
                 <input type="number" className="form-input" value={settings.slot_duration || 30} onChange={e => updateSetting('slot_duration', e.target.value)} min={5} />
               </div>
             </div>
@@ -111,6 +111,8 @@ export default function Settings() {
               <h2>Availability Schedule</h2>
               <button className="btn btn-sm btn-secondary" onClick={addAvail}><Plus size={14} /> Add Slot</button>
             </div>
+            <p className="settings-hint">Set working hours and daily appointment limits for each day. Patients can book up to30 days in advance.</p>
+
             {availability.length === 0 ? (
               <p style={{ color: 'var(--color-text-light)' }}>No availability configured. Add working hours.</p>
             ) : (
@@ -123,7 +125,13 @@ export default function Settings() {
                     <input type="time" className="form-input" value={a.start_time} onChange={e => updateAvail(i, 'start_time', e.target.value)} />
                     <span>to</span>
                     <input type="time" className="form-input" value={a.end_time} onChange={e => updateAvail(i, 'end_time', e.target.value)} />
-                    <input type="number" className="form-input" value={a.slot_duration} onChange={e => updateAvail(i, 'slot_duration', Number(e.target.value))} min={5} style={{ width: 80 }} placeholder="Min" />
+                    <div className="avail-limit">
+                      <label>Max:</label>
+                      <input type="number" className="form-input" value={a.max_appointments || 10}
+                        onChange={e => updateAvail(i, 'max_appointments', Number(e.target.value))}
+                        min={1} max={100} />
+                      <span>patients</span>
+                    </div>
                     <button className="btn btn-sm btn-secondary" onClick={() => updateAvail(i, 'is_active', a.is_active ? 0 : 1)}>
                       {a.is_active ? 'Active' : 'Off'}
                     </button>
@@ -162,13 +170,21 @@ export default function Settings() {
 
       <style>{`
         .admin-page-title { font-size: 1.75rem; margin-bottom: 1.5rem; }
-        .settings-sections { display: flex; flex-direction: column; gap: 1.5rem; max-width: 800px; }
+        .settings-sections { display: flex; flex-direction: column; gap: 1.5rem; max-width: 900px; }
         .settings-section h2 { font-size: 1.25rem; margin-bottom: 1.25rem; }
-        .settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .settings-hint { color: var(--color-text-light); font-size: 0.9rem; margin-bottom: 1.25rem; }
         .avail-list { display: flex; flex-direction: column; gap: 0.75rem; }
         .avail-item { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
         .avail-item .form-select, .avail-item .form-input { width: auto; }
         .avail-item span { color: var(--color-text-light); font-size: 0.85rem; }
+        .avail-limit {
+          display: flex; align-items: center; gap: 0.375rem;
+          background: var(--color-bg-alt); padding: 0.375rem 0.75rem; border-radius: var(--radius-md);
+        }
+        .avail-limit label { font-size: 0.8rem; font-weight: 600; color: var(--color-text-light); }
+        .avail-limit .form-input { width: 60px; padding: 0.375rem; text-align: center; }
+        .avail-limit span { font-size: 0.8rem; color: var(--color-text-light); }
       `}</style>
     </div>
   );
