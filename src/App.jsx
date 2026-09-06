@@ -18,6 +18,8 @@ import Profile from './admin/Profile';
 import Gallery from './admin/Gallery';
 import Testimonials from './admin/Testimonials';
 import Settings from './admin/Settings';
+import Schedule from './admin/Schedule';
+import Chambers from './admin/Chambers';
 
 export default function App() {
   return (
@@ -37,8 +39,10 @@ export default function App() {
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="appointments" element={<AdminAppointments />} />
+        <Route path="schedule" element={<Schedule />} />
         <Route path="services" element={<AdminServices />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="chambers" element={<Chambers />} />
         <Route path="gallery" element={<Gallery />} />
         <Route path="testimonials" element={<Testimonials />} />
         <Route path="settings" element={<Settings />} />
