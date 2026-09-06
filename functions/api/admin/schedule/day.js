@@ -11,11 +11,9 @@ async function loadDay(db, chamber, date, now) {
     db.prepare(
       `SELECT a.id, a.reference, a.serial_number, a.status, a.message, a.admin_note, a.created_at,
               a.start_time, a.end_time,
-              p.name AS patient_name, p.phone AS patient_phone, p.email AS patient_email,
-              s.name AS service_name
+              p.name AS patient_name, p.phone AS patient_phone, p.email AS patient_email
        FROM appointments a
        JOIN patients p ON p.id = a.patient_id
-       LEFT JOIN services s ON s.id = a.service_id
        WHERE a.chamber_id = ? AND a.appointment_date = ?
        ORDER BY (a.serial_number IS NULL), a.serial_number ASC, a.created_at ASC`
     ).bind(chamber.id, date).all(),
