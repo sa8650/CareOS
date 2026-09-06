@@ -17,11 +17,24 @@ export default function ServiceDetails() {
       .finally(() => setLoading(false));
   }, [slug]);
 
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `/api/image?key=${encodeURIComponent(url)}`;
+  };
+
+  // Parse description into list items
+  const getDescriptionItems = (desc) => {
+    if (!desc) return [];
+    return desc.split('\n').filter(item => item.trim()).map(item => item.replace(/^[-•*]\s*/, '').trim());
+  };
+
   if (loading) return <div className="loading-page"><div className="spinner" /></div>;
   if (!service) return <div className="loading-page"><p>Service not found.</p></div>;
 
   const benefits = service.benefits ? (typeof service.benefits === 'string' ? JSON.parse(service.benefits) : service.benefits) : [];
   const faq = service.faq ? (typeof service.faq === 'string' ? JSON.parse(service.faq) : service.faq) : [];
+  const descriptionItems = getDescriptionItems(service.description);
 
   return (
     <div>
@@ -35,14 +48,23 @@ export default function ServiceDetails() {
       <section className="section">
         <div className="container sd-layout">
           <div className="sd-content">
-            <div className="sd-meta">
-              <span><Clock size={16} /> {service.duration_minutes} minutes</span>
-              {service.price ? <span><DollarSign size={16} /> {formatPrice(service.price)}</span> : null}
-            </div>
+            {service.image_url && (
+              <div className="sd-image">
+                <img src={getImageUrl(service.image_url)} alt={service.name} />
+              </div>
+            )}
 
             <div className="sd-description">
               <h2>About This Treatment</h2>
-              <p>{service.description}</p>
+              {descriptionItems.length > 0 ? (
+                <ul className="sd-description-list">
+                  {descriptionItems.map((item, i) => (
+                    <li key={i}><CheckCircle size={16} /> {item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>{service.description}</p>
+              )}
             </div>
 
             {benefits.length > 0 && (
@@ -76,11 +98,6 @@ export default function ServiceDetails() {
           </div>
 
           <div className="sd-sidebar">
-            {service.image_url && (
-              <div className="sd-image">
-                <img src={service.image_url} alt={service.name} />
-              </div>
-            )}
             <div className="sd-cta card">
               <div className="card-body" style={{ textAlign: 'center' }}>
                 <h3>Book This Treatment</h3>
@@ -100,22 +117,22 @@ export default function ServiceDetails() {
         .page-hero { padding: 8rem 0 3rem; background: linear-gradient(135deg, #f0f9ff, #e0f2fe); text-align: center; }
         .page-hero h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
         .page-hero p { color: var(--color-text-light); font-size: 1.1rem; }
-
-        .sd-layout { display: grid; grid-template-columns: 1fr 380px; gap: 3rem; align-items: start; }
-        .sd-meta { display: flex; gap: 2rem; margin-bottom: 2rem; font-weight: 500; color: var(--color-text-light); }
-        .sd-meta span { display: flex; align-items: center; gap: 0.375rem; }
+        .sd-layout { display: grid; grid-template-columns: 1fr 350px; gap: 3rem; align-items: start; }
+        .sd-image { border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 2rem; }
+        .sd-image img { width: 100%; height: auto; }
         .sd-description h2, .sd-benefits h2, .sd-faq h2 { font-size: 1.5rem; margin-bottom: 1rem; }
         .sd-description p { color: var(--color-text-light); line-height: 1.8; font-size: 1.05rem; margin-bottom: 2rem; }
+        .sd-description-list { list-style: none; margin-bottom: 2rem; }
+        .sd-description-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--color-border); color: var(--color-text); font-size: 0.95rem; }
+        .sd-description-list li:last-child { border-bottom: none; }
+        .sd-description-list li svg { color: var(--color-success); flex-shrink: 0; margin-top: 0.125rem; }
         .sd-benefit-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 2rem; }
         .sd-benefit { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
         .sd-benefit svg { color: var(--color-success); flex-shrink: 0; }
         .sd-faq-item { border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 0.5rem; overflow: hidden; cursor: pointer; }
         .sd-faq-question { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; font-weight: 600; }
         .sd-faq-answer { padding: 0 1.25rem 1rem; color: var(--color-text-light); font-size: 0.95rem; line-height: 1.6; }
-        .sd-image { border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 1.5rem; }
-        .sd-image img { width: 100%; height: auto; }
         .sd-cta { position: sticky; top: 90px; }
-
         @media (max-width: 768px) {
           .sd-layout { grid-template-columns: 1fr; }
           .sd-benefit-list { grid-template-columns: 1fr; }
