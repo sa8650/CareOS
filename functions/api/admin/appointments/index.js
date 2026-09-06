@@ -12,12 +12,11 @@ export async function onRequestGet(context) {
   const limit = url.searchParams.get('limit');
 
   let query = `
-    SELECT a.*, c.name AS chamber_name, s.name AS service_name,
+    SELECT a.*, c.name AS chamber_name,
            p.name AS patient_name, p.phone AS patient_phone, p.email AS patient_email
     FROM appointments a
     JOIN patients p ON p.id = a.patient_id
     LEFT JOIN chambers c ON c.id = a.chamber_id
-    LEFT JOIN services s ON s.id = a.service_id
     WHERE 1=1
   `;
   const params = [];
