@@ -67,13 +67,14 @@ async function seed() {
      '[{"question":"How often should I get screened?","answer":"Annual screenings are recommended, or more frequently if you have risk factors."}]',
      1)`,
 
-    // Availability (Mon-Fri 9-5, Sat 9-1)
-    `INSERT OR IGNORE INTO availability (day_of_week, start_time, end_time, slot_duration, is_active) VALUES (1, '09:00', '17:00', 30, 1)`,
-    `INSERT OR IGNORE INTO availability (day_of_week, start_time, end_time, slot_duration, is_active) VALUES (2, '09:00', '17:00', 30, 1)`,
-    `INSERT OR IGNORE INTO availability (day_of_week, start_time, end_time, slot_duration, is_active) VALUES (3, '09:00', '17:00', 30, 1)`,
-    `INSERT OR IGNORE INTO availability (day_of_week, start_time, end_time, slot_duration, is_active) VALUES (4, '09:00', '17:00', 30, 1)`,
-    `INSERT OR IGNORE INTO availability (day_of_week, start_time, end_time, slot_duration, is_active) VALUES (5, '09:00', '17:00', 30, 1)`,
-    `INSERT OR IGNORE INTO availability (day_of_week, start_time, end_time, slot_duration, is_active) VALUES (6, '09:00', '13:00', 30, 1)`,
+    // Chambers (each with its own default schedule: days / hours / daily limit)
+    // visiting_days: JSON array of weekday numbers, 0=Sun ... 6=Sat
+    `INSERT INTO chambers (name, address, phone, visiting_days, start_time, end_time, daily_limit, is_active, display_order)
+     SELECT 'Dhaka Medical College', 'Secretariat Road, Dhaka 1000', '+880 1700-000001', '[0,1]', '15:00', '20:00', 10, 1, 0
+     WHERE NOT EXISTS (SELECT 1 FROM chambers WHERE name = 'Dhaka Medical College')`,
+    `INSERT INTO chambers (name, address, phone, visiting_days, start_time, end_time, daily_limit, is_active, display_order)
+     SELECT 'Chittagong Medical College', 'K.B. Fazlul Kader Road, Chattogram 4203', '+880 1700-000002', '[4,5,6]', '10:00', '15:00', 15, 1, 1
+     WHERE NOT EXISTS (SELECT 1 FROM chambers WHERE name = 'Chittagong Medical College')`,
 
     // Testimonials
     `INSERT OR IGNORE INTO testimonials (name, review, rating, is_published) VALUES
@@ -88,8 +89,6 @@ async function seed() {
     `INSERT OR IGNORE INTO settings (key, value) VALUES ('phone', '+1 (555) 123-4567')`,
     `INSERT OR IGNORE INTO settings (key, value) VALUES ('email', 'info@drsarahmitchell.com')`,
     `INSERT OR IGNORE INTO settings (key, value) VALUES ('address', '123 Medical Plaza, Suite 200, New York, NY 10001')`,
-    `INSERT OR IGNORE INTO settings (key, value) VALUES ('opening_hours', 'Mon–Fri: 9AM–5PM | Sat: 9AM–1PM')`,
-    `INSERT OR IGNORE INTO settings (key, value) VALUES ('slot_duration', '30')`,
   ];
 
   for (const q of queries) {
