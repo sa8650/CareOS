@@ -53,7 +53,9 @@ This creates:
 - Admin account (admin@clinic.com / admin123)
 - Sample doctor profile
 - 6 sample services
-- Availability schedule (Mon-Fri 9-5, Sat 9-1)
+- Two chambers with their own default schedules
+  - Dhaka Medical College — Sun, Mon · 3:00 PM–8:00 PM · 10 patients/day
+  - Chittagong Medical College — Thu, Fri, Sat · 10:00 AM–3:00 PM · 15 patients/day
 - Sample testimonials
 - Basic settings
 
@@ -72,6 +74,46 @@ For frontend-only development:
 ```bash
 npm run dev
 ```
+
+## Appointment & Schedule System
+
+Scheduling is **chamber-specific and fully dynamic**. Nothing is pre-generated:
+every date is resolved on demand by one central engine
+(`functions/api/_lib/schedule.js`) that is shared by the admin Schedule page,
+the patient booking page, the availability API and the booking API.
+
+```
+Chamber Default Schedule  +  Date-Specific Override  +  Real-time Appointment Count
+```
+
+| Layer | Table | What it stores |
+|-------|-------|----------------|
+| Chambers | `chambers` | name, address, phone, `visiting_days` (JSON `[0..6]`, 0 = Sunday), default `start_time` / `end_time`, `daily_limit` |
+| Overrides | `schedule_overrides` | **one row per (chamber, date) only when an admin edits that date**: status (`available` / `off` / `closed`), start/end time, appointment limit, note. `NULL` fields inherit the chamber default |
+| Appointments | `appointments` | patient + `chamber_id` + `appointment_date` + `serial_number` + status |
+
+Resolution order for any (chamber, date): chamber default → override (if any) →
+Available / Off / Closed → count booked appointments → remaining capacity →
+`full` when booked ≥ limit. Booking is enforced server-side inside a single
+atomic `INSERT … WHERE count < limit` guarded by a unique
+`(chamber_id, date, serial_number)` index, so capacity can never be exceeded
+even under concurrent requests.
+
+Statuses: **Available** (bookable), **Off** (not a visiting day), **Closed**
+(visiting day disabled by admin for that date), **Full** (computed
+automatically).
+
+Set the clinic timezone with the `TIMEZONE` variable (defaults to `Asia/Dhaka`);
+"today" and "visiting hours ended" are evaluated in that zone.
+
+### Upgrading an existing deployment
+
+1. Pull the code and run `npm run db:migrate` (applies `002_chambers_schedule.sql`).
+   The migration keeps existing appointments and imports the legacy chambers
+   that were stored as JSON in `settings` (name / address / phone only).
+2. Open **Admin → Chambers** and set visiting days, hours and daily limit for
+   each chamber. Until a chamber has visiting days every date resolves to *Off*.
+3. Optionally add `TIMEZONE` under Pages → Settings → Environment variables.
 
 ## R2 Storage Setup
 
@@ -137,6 +179,7 @@ doctor-website/
 │   ├── utils/              # Helpers
 │   └── styles/             # Global CSS
 ├── functions/api/          # Cloudflare Pages Functions (API)
+│   ├── _lib/schedule.js    # Central schedule resolution engine
 │   ├── auth/               # Authentication endpoints
 │   ├── admin/              # Admin endpoints
 │   └── *.js                # Public endpoints
@@ -155,8 +198,11 @@ doctor-website/
 | GET | `/api/services/:slug` | Service details |
 | GET | `/api/gallery` | Published gallery images |
 | GET | `/api/testimonials` | Published testimonials |
-| GET | `/api/availability` | Availability schedule |
-| POST | `/api/appointments` | Book appointment |
+| GET | `/api/chambers` | Active chambers with default schedule |
+| GET | `/api/availability?chamber_id=1` | Resolved next-30-days schedule for a chamber |
+| GET | `/api/availability?chamber_id=1&date=YYYY-MM-DD` | Resolved single day |
+| POST | `/api/appointments` | Book appointment (`chamber_id`, `date`, `name`, `phone`, `email?`, `message?`) → serial number |
+| GET | `/api/appointments/:reference` | Appointment lookup |
 
 ### Auth
 | Method | Endpoint | Description |
@@ -169,8 +215,17 @@ doctor-website/
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/admin/stats` | Dashboard statistics |
-| GET | `/api/admin/appointments` | List appointments |
-| PUT | `/api/admin/appointments/:id` | Update appointment |
+| GET | `/api/admin/appointments` | List appointments (`status`, `date`, `from`, `to`, `chamber_id`, `search`, `limit`) |
+| PUT | `/api/admin/appointments/:id` | Update status / note, or move to another chamber & date (capacity checked, new serial) |
+| DELETE | `/api/admin/appointments/:id` | Delete appointment |
+| GET | `/api/admin/chambers` | List chambers |
+| POST | `/api/admin/chambers` | Create chamber |
+| PUT | `/api/admin/chambers/:id` | Update chamber (partial) |
+| DELETE | `/api/admin/chambers/:id` | Delete chamber (`?force=1` if it has upcoming appointments) |
+| GET | `/api/admin/schedule?chamber_id=1` | Dynamic 30-day calendar for a chamber |
+| GET | `/api/admin/schedule/day?chamber_id=1&date=…` | Resolved day + override + appointments |
+| PUT | `/api/admin/schedule/day` | Create/update a date-specific override |
+| DELETE | `/api/admin/schedule/day?chamber_id=1&date=…` | Remove override (back to chamber default) |
 | GET | `/api/admin/services` | List all services |
 | POST | `/api/admin/services` | Create service |
 | PUT | `/api/admin/services/:id` | Update service |
@@ -187,8 +242,6 @@ doctor-website/
 | DELETE | `/api/admin/testimonials/:id` | Delete testimonial |
 | GET | `/api/admin/settings` | Get settings |
 | PUT | `/api/admin/settings` | Update settings |
-| GET | `/api/admin/availability` | Get availability |
-| PUT | `/api/admin/availability` | Update availability |
 | POST | `/api/admin/upload` | Upload image to R2 |
 
 ## Default Admin Login
@@ -204,6 +257,7 @@ doctor-website/
 |----------|-------------|
 | `ADMIN_EMAIL` | Default admin email (for seeding) |
 | `ADMIN_PASSWORD` | Default admin password (for seeding) |
+| `TIMEZONE` | Clinic timezone for schedule resolution (default `Asia/Dhaka`) |
 
 ## Routes
 
@@ -221,6 +275,8 @@ doctor-website/
 - `/admin/login` - Admin login
 - `/admin` - Dashboard
 - `/admin/appointments` - Manage appointments
+- `/admin/schedule` - Chamber calendar (next 30 days) & date overrides
+- `/admin/chambers` - Chambers with visiting days / hours / daily limit
 - `/admin/services` - Manage services
 - `/admin/profile` - Edit doctor profile
 - `/admin/gallery` - Manage gallery
