@@ -49,4 +49,3 @@ export async function uploadFile(file, folder) {
   return res.json();
 }
 
-
