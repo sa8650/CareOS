@@ -15,7 +15,7 @@ export default function Services() {
   useEffect(() => { load(); }, []);
 
   const openNew = () => { setForm({ name: '', slug: '', description: '', is_active: 1 }); setModal('new'); setImageFile(null); };
-  const openEdit = (s) => { setForm({ ...s, description: Array.isArray(s.description) ? s.description.join('\n') : (s.description || '') }); setModal('edit'); setImageFile(null); };
+  const openEdit = (s) => { setForm({ ...s }); setModal('edit'); setImageFile(null); };
 
   const update = (k, v) => {
     setForm(f => {
@@ -34,7 +34,7 @@ export default function Services() {
         const res = await uploadFile(imageFile, 'services');
         image_url = res.url;
       }
-      const data = { ...form, image_url, description: form.description };
+      const data = { ...form, image_url };
       if (modal === 'new') {
         await adminPost('/services', data);
       } else {
@@ -56,6 +56,12 @@ export default function Services() {
 
   const toggleActive = async (s) => {
     try { await adminPut(`/services/${s.id}`, { is_active: s.is_active ? 0 : 1 }); load(); } catch (err) { alert(err.message); }
+  };
+
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `/api/image?key=${encodeURIComponent(url)}`;
   };
 
   return (
@@ -83,7 +89,7 @@ export default function Services() {
                 <div className="service-admin-header">
                   <div className="service-admin-info">
                     {s.image_url ? (
-                      <img src={s.image_url} alt="" className="service-admin-thumb" />
+                      <img src={getImageUrl(s.image_url)} alt="" className="service-admin-thumb" />
                     ) : (
                       <div className="service-admin-thumb-placeholder">📋</div>
                     )}
@@ -128,11 +134,11 @@ export default function Services() {
                 <div className="form-group">
                   <label className="form-label">Description (one item per line)</label>
                   <textarea className="form-textarea" value={form.description || ''} onChange={e => update('description', e.target.value)} rows={6}
-                    placeholder="Treatment for acne and pimples&#10;Reduces scars and dark spots&#10;Customized skin care plan&#10;Visible results in 4-6 weeks" />
+                    placeholder={"Treatment for acne and pimples\nReduces scars and dark spots\nCustomized skin care plan\nVisible results in 4-6 weeks"} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Image</label>
-                  {form.image_url && <img src={form.image_url} alt="" style={{ width: 80, height: 80, borderRadius: 8, objectFit: 'cover', marginBottom: '0.5rem' }} />}
+                  {form.image_url && <img src={getImageUrl(form.image_url)} alt="" style={{ width: 80, height: 80, borderRadius: 8, objectFit: 'cover', marginBottom: '0.5rem' }} />}
                   <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} />
                 </div>
               </div>
@@ -149,7 +155,6 @@ export default function Services() {
         .admin-page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
         .admin-page-title { font-size: 1.75rem; }
         .services-admin-grid { display: flex; flex-direction: column; gap: 1rem; }
-        .service-admin-card { }
         .service-admin-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
         .service-admin-info { display: flex; align-items: center; gap: 1rem; }
         .service-admin-thumb { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; }
