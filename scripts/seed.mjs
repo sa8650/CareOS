@@ -86,12 +86,15 @@ async function seed() {
      WHERE NOT EXISTS (SELECT 1 FROM chambers WHERE name = 'Chittagong Medical College')`,
 
     // Testimonials
-    `INSERT OR IGNORE INTO testimonials (name, review, rating, is_published) VALUES
-     ('Maria Johnson', 'Dr. Mitchell is incredibly knowledgeable and caring. She took the time to explain my condition and treatment options. My acne cleared up within weeks!', 5, 1)`,
-    `INSERT OR IGNORE INTO testimonials (name, review, rating, is_published) VALUES
-     ('David Chen', 'The PRP treatment results exceeded my expectations. Professional staff, clean facility, and Dr. Mitchell truly cares about her patients.', 5, 1)`,
-    `INSERT OR IGNORE INTO testimonials (name, review, rating, is_published) VALUES
-     ('Sarah Williams', 'Best dermatologist I''ve ever visited. The anti-aging treatment gave me natural-looking results. Highly recommend!', 5, 1)`,
+    `INSERT INTO testimonials (name, review, rating, is_published)
+     SELECT 'Maria Johnson', 'Dr. Mitchell is incredibly knowledgeable and caring. She took the time to explain my condition and treatment options. My acne cleared up within weeks!', 5, 1
+     WHERE NOT EXISTS (SELECT 1 FROM testimonials WHERE name = 'Maria Johnson')`,
+    `INSERT INTO testimonials (name, review, rating, is_published)
+     SELECT 'David Chen', 'The PRP treatment results exceeded my expectations. Professional staff, clean facility, and Dr. Mitchell truly cares about her patients.', 5, 1
+     WHERE NOT EXISTS (SELECT 1 FROM testimonials WHERE name = 'David Chen')`,
+    `INSERT INTO testimonials (name, review, rating, is_published)
+     SELECT 'Sarah Williams', 'Best dermatologist I''ve ever visited. The anti-aging treatment gave me natural-looking results. Highly recommend!', 5, 1
+     WHERE NOT EXISTS (SELECT 1 FROM testimonials WHERE name = 'Sarah Williams')`,
 
     // Settings
     `INSERT OR IGNORE INTO settings (key, value) VALUES ('clinic_name', 'Mitchell Dermatology Clinic')`,
@@ -100,16 +103,22 @@ async function seed() {
     `INSERT OR IGNORE INTO settings (key, value) VALUES ('address', '123 Medical Plaza, Suite 200, New York, NY 10001')`,
   ];
 
-  for (const q of queries) {
-    try {
-      execSync(`wrangler d1 execute doctor-db --local --command "${q.replace(/"/g, '\\"')}"`, { stdio: 'pipe' });
-    } catch (e) {
-      console.error('Query failed:', q.slice(0, 80), e.message);
-    }
-  }
+  // Write everything to one temporary .sql file and run it in a single
+  // wrangler call (one round-trip; works for both local and remote).
+  const sqlFile = join(tmpdir(), `careos-seed-${Date.now()}.sql`);
+  writeFileSync(sqlFile, queries.map(q => q.trim().replace(/;?$/, ';')).join('\n\n') + '\n');
 
-  console.log('✅ Seed data inserted successfully!');
-  console.log(`\nAdmin login: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+  console.log(`Seeding ${REMOTE ? 'REMOTE (production)' : 'LOCAL'} database doctor-db ...`);
+  try {
+    execSync(`npx wrangler d1 execute doctor-db ${TARGET_FLAG} --file="${sqlFile}"`, { stdio: 'inherit' });
+    console.log('\n✅ Seed data inserted successfully!');
+    console.log(`Admin login: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+  } catch (e) {
+    console.error('\n❌ Seed failed:', e.message);
+    process.exitCode = 1;
+  } finally {
+    try { unlinkSync(sqlFile); } catch { /* ignore */ }
+  }
 }
 
 seed();
