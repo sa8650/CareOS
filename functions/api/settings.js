@@ -7,3 +7,4 @@ export async function onRequestGet(context) {
   for (const r of results) settings[r.key] = r.value;
   return json(settings);
 }
+
