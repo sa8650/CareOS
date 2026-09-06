@@ -20,6 +20,7 @@ export const fetchService = (slug) => request(`/services/${slug}`);
 export const fetchGallery = () => request('/gallery');
 export const fetchTestimonials = () => request('/testimonials');
 export const fetchAvailability = () => request('/availability');
+export const fetchSettings = () => request('/settings');
 export const bookAppointment = (data) => request('/appointments', { method: 'POST', body: JSON.stringify(data) });
 export const fetchAppointment = (ref) => request(`/appointments/${ref}`);
 
