@@ -1,7 +1,16 @@
-// Seed script for local development
-// Run: npm run seed (after npm run db:migrate:local)
+// Seed script
+//   Local  DB:  npm run seed          (after npm run db:migrate:local)
+//   Remote DB:  npm run seed:remote   (after npm run db:migrate)
+//
+// All statements use INSERT OR IGNORE / only-if-empty guards, so re-running is safe.
 
 import { execSync } from 'child_process';
+import { writeFileSync, unlinkSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+
+const REMOTE = process.argv.includes('--remote');
+const TARGET_FLAG = REMOTE ? '--remote' : '--local';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@clinic.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
