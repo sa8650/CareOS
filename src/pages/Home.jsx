@@ -1,23 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Award, Shield, Star, ChevronRight, Calendar, Building2, MapPin, Phone, Clock } from 'lucide-react';
-import { fetchDoctor, fetchServices, fetchTestimonials, fetchSettings } from '../api/api';
+import { fetchDoctor, fetchServices, fetchTestimonials, fetchChambers } from '../api/api';
+import { formatTimeRange, formatVisitingDays, DAYS_SHORT } from '../utils/helpers';
 
 export default function Home() {
   const [doctor, setDoctor] = useState(null);
   const [services, setServices] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
-  const [settings, setSettings] = useState({});
+  const [chambers, setChambers] = useState([]);
 
   useEffect(() => {
     fetchDoctor().then(setDoctor).catch(() => {});
     fetchServices().then(setServices).catch(() => {});
     fetchTestimonials().then(setTestimonials).catch(() => {});
-    fetchSettings().then(setSettings).catch(() => {});
+    fetchChambers().then(setChambers).catch(() => {});
   }, []);
 
   const serviceIcons = ['🧴', '💉', '✨', '🔬', '💊', '🩺', '🧬', '💡'];
-  const chambers = settings.chambers ? JSON.parse(settings.chambers || '[]') : [];
 
   const getImageUrl = (url) => {
     if (!url) return null;
@@ -173,8 +173,8 @@ export default function Home() {
               <p className="section-subtitle">Visit me at any of my chambers</p>
             </div>
             <div className="chambers-grid">
-              {chambers.map((c, i) => (
-                <div key={i} className="chamber-card card">
+              {chambers.map((c) => (
+                <div key={c.id} className="chamber-card card">
                   <div className="card-body">
                     <h3>{c.name}</h3>
                     <div className="chamber-info">
@@ -190,14 +190,22 @@ export default function Home() {
                           <span>{c.phone}</span>
                         </div>
                       )}
-                      {c.hours && (
-                        <div className="chamber-item">
-                          <Clock size={16} />
-                          <span>{c.hours}</span>
-                        </div>
-                      )}
+                      <div className="chamber-item">
+                        <Clock size={16} />
+                        <span>{formatTimeRange(c.start_time, c.end_time)}</span>
+                      </div>
                     </div>
-                    {c.days && <div className="chamber-days">{c.days}</div>}
+                    <div className="chamber-days">
+                      <div className="chamber-days-pills">
+                        {DAYS_SHORT.map((d, i) => (
+                          <span key={d} className={c.visiting_days.includes(i) ? 'on' : ''}>{d}</span>
+                        ))}
+                      </div>
+                      <span className="chamber-days-text">{formatVisitingDays(c.visiting_days)}</span>
+                    </div>
+                    <Link to="/appointment" className="btn btn-outline btn-sm" style={{ marginTop: '1rem' }}>
+                      <Calendar size={14} /> Book here
+                    </Link>
                   </div>
                 </div>
               ))}
@@ -328,6 +336,10 @@ export default function Home() {
         .chamber-item { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.9rem; color: var(--color-text-light); }
         .chamber-item svg { color: var(--color-primary); flex-shrink: 0; margin-top: 0.125rem; }
         .chamber-days { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border); font-size: 0.85rem; color: var(--color-text-light); }
+        .chamber-days-pills { display: flex; gap: 0.3rem; margin-bottom: 0.4rem; }
+        .chamber-days-pills span { flex: 1; text-align: center; font-size: 0.65rem; font-weight: 700; padding: 0.3rem 0; border-radius: 6px; background: var(--color-bg-alt); color: #94a3b8; text-transform: uppercase; }
+        .chamber-days-pills span.on { background: #dcfce7; color: #15803d; }
+        .chamber-days-text { font-weight: 600; color: var(--color-text); }
 
         .testimonial-card { text-align: center; }
         .testimonial-stars { color: #f59e0b; font-size: 1.25rem; margin-bottom: 1rem; }
