@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
-import { LayoutDashboard, Calendar, Stethoscope, UserCircle, Image, MessageSquare, Settings, LogOut, Menu, X, Clock, Building2 } from 'lucide-react';
+import { LayoutDashboard, Calendar, Stethoscope, UserCircle, Image, MessageSquare, Settings, LogOut, Menu, X } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 
 export default function AdminLayout() {
@@ -23,10 +23,8 @@ export default function AdminLayout() {
   const navItems = [
     { to: '/admin', icon: <LayoutDashboard size={18} />, label: 'Dashboard', end: true },
     { to: '/admin/appointments', icon: <Calendar size={18} />, label: 'Appointments' },
-    { to: '/admin/schedule', icon: <Clock size={18} />, label: 'Schedule' },
     { to: '/admin/services', icon: <Stethoscope size={18} />, label: 'Services' },
     { to: '/admin/profile', icon: <UserCircle size={18} />, label: 'Profile' },
-    { to: '/admin/chambers', icon: <Building2 size={18} />, label: 'Chambers' },
     { to: '/admin/gallery', icon: <Image size={18} />, label: 'Gallery' },
     { to: '/admin/testimonials', icon: <MessageSquare size={18} />, label: 'Testimonials' },
     { to: '/admin/settings', icon: <Settings size={18} />, label: 'Settings' },
@@ -86,7 +84,7 @@ export default function AdminLayout() {
           display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800;
         }
         .admin-sidebar-close { display: none; color: white; }
-        .admin-nav { flex: 1; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.25rem; overflow-y: auto; }
+        .admin-nav { flex: 1; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.25rem; }
         .admin-nav-link {
           display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem;
           border-radius: var(--radius-md); color: #94a3b8; font-size: 0.9rem; font-weight: 500;
