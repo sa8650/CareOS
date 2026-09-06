@@ -40,8 +40,6 @@ export async function onRequestPost(context) {
     httpMetadata: { contentType: file.type },
   });
 
-  // Return URL that goes through our serving function
-  const url = `/api/images/${key}`;
-
-  return json({ url, key });
+  // Return just the key - frontend will use /api/image?key=KEY to display
+  return json({ url: key, key: key });
 }
