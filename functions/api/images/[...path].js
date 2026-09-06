@@ -27,3 +27,4 @@ export async function onRequest(context) {
     return new Response('Error loading image', { status: 500 });
   }
 }
+
