@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Upload, Trash2, Eye, EyeOff, GripVertical } from 'lucide-react';
+import { Upload, Trash2, Eye, EyeOff } from 'lucide-react';
 import { adminGet, adminPost, adminDelete, adminPut, uploadFile } from '../api/api';
 
 export default function Gallery() {
@@ -10,6 +10,12 @@ export default function Gallery() {
 
   const load = () => adminGet('/gallery').then(setImages).catch(() => {}).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
+
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `/api/image?key=${encodeURIComponent(url)}`;
+  };
 
   const handleUpload = async (e) => {
     const file = e.target.files[0];
@@ -57,7 +63,7 @@ export default function Gallery() {
         <div className="gallery-admin-grid">
           {images.map(img => (
             <div key={img.id} className="gallery-admin-item">
-              <img src={img.image_url} alt={img.caption || ''} />
+              <img src={getImageUrl(img.image_url)} alt={img.caption || ''} />
               <div className="gallery-admin-actions">
                 {img.caption && <span className="gallery-caption-text">{img.caption}</span>}
                 <div className="gallery-action-btns">
@@ -79,10 +85,7 @@ export default function Gallery() {
         .admin-page-title { font-size: 1.75rem; }
         .gallery-upload { display: flex; align-items: center; gap: 0.75rem; }
         .gallery-admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
-        .gallery-admin-item {
-          border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--color-border);
-          background: white;
-        }
+        .gallery-admin-item { border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--color-border); background: white; }
         .gallery-admin-item img { width: 100%; height: 180px; object-fit: cover; }
         .gallery-admin-actions { padding: 0.75rem; }
         .gallery-caption-text { display: block; font-size: 0.85rem; color: var(--color-text-light); margin-bottom: 0.5rem; }
