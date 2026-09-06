@@ -7,11 +7,16 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "pages:dev": "vite build && wrangler pages dev dist --port 8788",
-    "pages:dev:proxy": "wrangler pages dev --port 8788 -- vite",
-    "db:migrate": "wrangler d1 migrations apply doctor-db",
-    "db:migrate:local": "wrangler d1 migrations apply doctor-db --local",
-    "seed": "node scripts/seed.mjs"
+    "pages:dev": "vite build && npx wrangler pages dev dist --port 8788",
+    "pages:dev:proxy": "npx wrangler pages dev --port 8788 -- vite",
+    "db:migrate": "npx wrangler d1 migrations apply doctor-db --remote",
+    "db:migrate:local": "npx wrangler d1 migrations apply doctor-db --local",
+    "db:reset": "npx wrangler d1 execute doctor-db --remote --file=./scripts/reset.sql",
+    "db:reset:local": "npx wrangler d1 execute doctor-db --local --file=./scripts/reset.sql",
+    "db:fresh": "npm run db:reset && npm run db:migrate && npm run seed:remote",
+    "db:fresh:local": "npm run db:reset:local && npm run db:migrate:local && npm run seed",
+    "seed": "node scripts/seed.mjs",
+    "seed:remote": "node scripts/seed.mjs --remote"
   },
   "dependencies": {
     "react": "^18.3.1",
