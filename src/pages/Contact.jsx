@@ -1,6 +1,23 @@
+import { useState, useEffect } from 'react';
 import { Phone, Mail, MapPin, Clock, MessageSquare } from 'lucide-react';
+import { fetchChambers, fetchDoctor } from '../api/api';
+import { formatTimeRange, formatVisitingDays } from '../utils/helpers';
 
 export default function Contact() {
+  const [chambers, setChambers] = useState([]);
+  const [doctor, setDoctor] = useState(null);
+
+  useEffect(() => {
+    fetchChambers().then(setChambers).catch(() => {});
+    fetchDoctor().then(setDoctor).catch(() => {});
+  }, []);
+
+  const first = chambers[0];
+  const hoursMain = first ? `${first.name}: ${formatVisitingDays(first.visiting_days)}` : 'Mon–Fri: 9AM–5PM';
+  const hoursSub = first
+    ? formatTimeRange(first.start_time, first.end_time) + (chambers.length > 1 ? ` · +${chambers.length - 1} more chamber${chambers.length > 2 ? 's' : ''}` : '')
+    : 'Sat: 9AM–1PM | Sun: Closed';
+
   return (
     <div>
       <section className="page-hero">
@@ -14,10 +31,10 @@ export default function Contact() {
         <div className="container contact-grid">
           <div className="contact-info-cards">
             {[
-              { icon: <Phone size={28} />, title: 'Phone', content: '+1 (555) 123-4567', sub: 'Mon–Fri, 9AM–5PM' },
-              { icon: <Mail size={28} />, title: 'Email', content: 'info@drsarahmitchell.com', sub: 'We respond within 24 hours' },
-              { icon: <MapPin size={28} />, title: 'Address', content: '123 Medical Plaza, Suite 200', sub: 'New York, NY 10001' },
-              { icon: <Clock size={28} />, title: 'Hours', content: 'Mon–Fri: 9AM–5PM', sub: 'Sat: 9AM–1PM | Sun: Closed' },
+              { icon: <Phone size={28} />, title: 'Phone', content: doctor?.phone || '+1 (555) 123-4567', sub: 'Call during visiting hours' },
+              { icon: <Mail size={28} />, title: 'Email', content: doctor?.email || 'info@drsarahmitchell.com', sub: 'We respond within 24 hours' },
+              { icon: <MapPin size={28} />, title: 'Address', content: first?.address || doctor?.address || '123 Medical Plaza, Suite 200', sub: first ? first.name : 'New York, NY 10001' },
+              { icon: <Clock size={28} />, title: 'Visiting Hours', content: hoursMain, sub: hoursSub },
             ].map((c, i) => (
               <div key={i} className="contact-info-card card">
                 <div className="card-body">
