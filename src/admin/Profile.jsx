@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Upload } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { adminGet, adminPut, uploadFile } from '../api/api';
 
 export default function Profile() {
@@ -28,6 +28,12 @@ export default function Profile() {
   }, []);
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `/api/image?key=${encodeURIComponent(url)}`;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,7 +69,7 @@ export default function Profile() {
           <div className="card-body">
             <h2>Personal Information</h2>
             <div className="profile-photo-section">
-              {form.profile_image && <img src={form.profile_image} alt="Profile" className="profile-photo-preview" />}
+              {form.profile_image && <img src={getImageUrl(form.profile_image)} alt="Profile" className="profile-photo-preview" />}
               <div>
                 <label className="form-label">Profile Photo</label>
                 <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} />
@@ -93,7 +99,7 @@ export default function Profile() {
             <div className="form-group">
               <label className="form-label">Qualifications (one per line)</label>
               <textarea className="form-textarea" value={form.qualifications || ''} onChange={e => update('qualifications', e.target.value)} rows={4}
-                placeholder="MBBS (Dhaka)&#10;BCS (Health)&#10;DDV (BSMMU)&#10;Board Certified Dermatologist" />
+                placeholder={"MBBS (Dhaka)\nBCS (Health)\nDDV (BSMMU)\nBoard Certified Dermatologist"} />
             </div>
             <div className="form-group">
               <label className="form-label">Specializations (comma-separated)</label>
