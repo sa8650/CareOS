@@ -7,7 +7,7 @@ export default function ServiceCard({ service }) {
     <Link to={`/services/${service.slug}`} className="service-card card">
       {service.image_url && (
         <div className="service-card-img">
-          <img src={service.image_url} alt={service.name} loading="lazy" />
+          <img src={`/api/image?key=${encodeURIComponent(service.image_url)}`} alt={service.name} loading="lazy" />
         </div>
       )}
       <div className="card-body">
