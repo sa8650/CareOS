@@ -48,4 +48,3 @@ export async function uploadFile(file, folder) {
   if (!res.ok) throw new Error('Upload failed');
   return res.json();
 }
-
