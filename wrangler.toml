@@ -4,6 +4,8 @@ pages_build_output_dir = "./dist"
 
 [vars]
 ENVIRONMENT = "production"
+# Clinic timezone used by the schedule engine ("today", visiting-hours cut-off)
+TIMEZONE = "Asia/Dhaka"
 
 [[d1_databases]]
 binding = "DB"
