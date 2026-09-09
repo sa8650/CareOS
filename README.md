@@ -1,86 +1,123 @@
 # Doctor Portfolio & Appointment Website
 
-A modern, responsive doctor portfolio and appointment booking website built with React + Vite, deployed on Cloudflare Pages with D1 database and R2 storage.
+One repo, many websites. This template powers any number of doctor portfolio +
+appointment sites (SaaS style): every doctor deploys the **same code** as their
+own Cloudflare Pages project and connects their **own database + file storage**
+in the dashboard. The repo contains **no bindings, no IDs, no secrets** — safe
+for public repos.
 
 ## Tech Stack
 
 - **Frontend:** React 18 + Vite + React Router
 - **Backend:** Cloudflare Pages Functions
-- **Database:** Cloudflare D1 (SQLite)
-- **Storage:** Cloudflare R2 (images)
-- **Hosting:** Cloudflare Pages
+- **Database:** Cloudflare D1 (SQLite — one database per website)
+- **Storage:** Cloudflare R2 (images — one bucket per website)
+- **Hosting:** Cloudflare Pages (one project per website)
 
-## Quick Start (Local Development)
+## How It Works (SaaS)
 
-### 1. Install Dependencies
-
-```bash
-npm install
+```text
+Same GitHub repo ─┬─► Pages project "Doctor A" ─► D1 + R2 of Doctor A
+                  ├─► Pages project "Doctor B" ─► D1 + R2 of Doctor B
+                  └─► Pages project "Doctor C" ─► …
 ```
 
-### 2. Create D1 Database
+- Push code once → every connected website rebuilds automatically.
+- Each website's content (doctor profile, chambers, appointments, …) lives in
+  its own D1 database and is edited through that site's own `/admin` panel.
+- No per-doctor code changes needed. Ever.
 
-```bash
-npx wrangler d1 create doctor-db
-```
+## Setup — Repeat for Each Doctor Website (dashboard only, ~10 min, no terminal)
 
-Copy the `database_id` output and update `wrangler.toml`:
+### 1. Create the D1 database
 
-```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "doctor-db"
-database_id = "YOUR_DATABASE_ID"
-```
+Cloudflare Dashboard → **Workers & Pages → D1 SQL → Create database**.
+Name it anything, e.g. `doctor-a-db` → Create.
 
-### 3. Run Migrations
+### 2. Create the tables
 
-There is a single migration, `migrations/001_initial.sql`, which creates the
-complete schema (portfolio tables + chambers + schedule overrides + appointments).
+Open your new database → **Console** tab. Open the file
+`migrations/001_initial.sql` in this repo, copy **all** of it, paste into the
+console → **Execute**. (One paste creates all 12 tables.)
 
-```bash
-# Local development
-npm run db:migrate:local
+### 3. Add starter data (recommended)
 
-# Production (remote D1)
-npm run db:migrate
-```
+In the same D1 Console, copy-paste `scripts/seed.sql` → **Execute**.
+This creates the admin login plus a sample doctor profile, services and
+chambers that you will replace with the real doctor's data.
 
-### 4. Seed Sample Data
+### 4. Create the R2 bucket
 
-```bash
-npm run seed          # local database
-npm run seed:remote   # production database
-```
+Dashboard → **R2 → Create bucket**, e.g. `doctor-a-media`. Leave it
+**private** — images upload through `/api/admin/upload` and are served through
+`/api/image`, so no public bucket URL is ever needed.
 
-### Fresh start (wipe everything)
+### 5. Connect the website
 
-To drop **all tables and all data** and rebuild from scratch:
+Dashboard → **Workers & Pages → Create → Pages → Connect to Git**:
 
-**Option A — Cloudflare dashboard (no local tools needed)**
+1. Select this repository (the same repo for every doctor) → Begin setup.
+2. Build settings: **Build command** `npm run build`,
+   **Build output directory** `dist` → Save and Deploy.
+3. The first deploy shows empty data — normal, bindings come next.
 
-Open Workers & Pages → D1 → `doctor-db` → **Console**, then paste and execute
-these files one after another (each is a single paste):
+### 6. Add this website's bindings
 
-1. `scripts/reset.sql` — drops every table (⚠️ irreversible)
+Pages → your project → **Settings → Bindings** — set for
+**both Production and Preview**:
+
+- **D1 database** → variable name `DB` → your database from step 1
+- **R2 bucket** → variable name `R2` → your bucket from step 4
+- (Optional) **Environment variables** → `TIMEZONE` = e.g. `Asia/Dhaka`
+  (the code defaults to `Asia/Dhaka` if unset)
+
+Then **Deployments → (⋯) → Retry deployment** — bindings only apply on a
+fresh deploy.
+
+### 7. Log in and make it theirs
+
+1. Open `https://<your-site>.pages.dev/admin`
+   (add a custom domain later under Pages → Custom domains).
+2. Log in: `admin@clinic.com` / `admin123`, then **change the password
+   immediately**: D1 → your database → Console → run
+
+   ```sql
+   UPDATE admins SET password_hash = '<sha256-of-new-password>'
+   WHERE email = 'admin@clinic.com';
+   ```
+
+   To get the `<sha256-of-new-password>` value, open any page in Chrome,
+   press F12 → Console, paste this (with your new password) → Enter:
+
+   ```js
+   await crypto.subtle.digest('SHA-256', new TextEncoder().encode('NEW-PASSWORD'))
+     .then(b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join(''))
+   ```
+
+3. **Admin → Profile**: doctor name, photo, qualifications, …
+4. **Admin → Chambers**: visiting days, hours, daily patient limit.
+5. Add services, gallery, testimonials and settings as needed.
+
+### Fresh start (wipe one website's data)
+
+D1 → your database → Console, paste + Execute in this order
+(⚠️ irreversible):
+
+1. `scripts/reset.sql` — drops every table
 2. `migrations/001_initial.sql` — creates the complete schema
-3. `scripts/seed.sql` — optional sample data (admin login, doctor, services, 2 chambers)
+3. `scripts/seed.sql` — optional starter data
 
-All three files are written so that they survive the console's line-joining
-(block comments only, no semicolons inside comments) and can be re-run safely.
+All three files survive the console's line-joining and are safe to re-run.
 
-**Option B — CLI**
+### Existing databases: additive migrations
 
-```bash
-# Local
-npm run db:fresh:local     # = db:reset:local + db:migrate:local + seed
+Fresh installs need only `001_initial.sql` (it already contains everything).
+If a database was created from an *older* `001`, run each of these once in the
+D1 console instead of resetting:
 
-# Production  ⚠️  destroys all remote data — irreversible
-npm run db:fresh           # = db:reset + db:migrate + seed:remote
-```
-
-`db:reset` runs `scripts/reset.sql`, which also drops Wrangler's
-`d1_migrations` bookkeeping table so the migration is re-applied cleanly.
+- `migrations/002_home_sections.sql` — featured home-page sections
+- `migrations/003_profile_stats.sql` — editable hero statistics
+- `migrations/004_seo.sql` — per-page SEO overrides
 
 ## Appointment & Schedule System
 
@@ -89,7 +126,7 @@ every date is resolved on demand by one central engine
 (`functions/api/_lib/schedule.js`) that is shared by the admin Schedule page,
 the patient booking page, the availability API and the booking API.
 
-```
+```text
 Chamber Default Schedule  +  Date-Specific Override  +  Real-time Appointment Count
 ```
 
@@ -110,75 +147,12 @@ Statuses: **Available** (bookable), **Off** (not a visiting day), **Closed**
 (visiting day disabled by admin for that date), **Full** (computed
 automatically).
 
-Set the clinic timezone with the `TIMEZONE` variable (defaults to `Asia/Dhaka`);
-"today" and "visiting hours ended" are evaluated in that zone.
-
-### Upgrading an existing deployment
-
-The schema is shipped as one consolidated migration, so an existing database
-that ran the *old* `001_initial.sql` must be reset:
-
-1. Reset the database (see *Fresh start* above — dashboard console or
-   `npm run db:fresh`). ⚠️ This deletes all existing rows.
-2. Open **Admin → Chambers** and set visiting days, hours and daily limit for
-   each chamber. Until a chamber has visiting days every date resolves to *Off*.
-3. Optionally add `TIMEZONE` under Pages → Settings → Environment variables
-   (it is also set in `wrangler.toml`).
-
-## R2 Storage Setup
-
-### Create R2 Bucket
-
-```bash
-npx wrangler r2 bucket create doctor-media
-```
-
-### Enable Public Access (for image serving)
-
-In Cloudflare Dashboard:
-1. Go to R2 → doctor-media → Settings
-2. Enable Public Access
-3. Note the public URL
-
-### Update Upload Function
-
-Edit `functions/api/admin/upload.js` and update the URL generation to use your R2 public URL:
-
-```js
-const url = `https://your-r2-public-url/${key}`;
-```
-
-## Deployment to Cloudflare Pages
-
-### Option 1: GitHub Integration (Recommended)
-
-1. Push code to GitHub
-2. Go to Cloudflare Dashboard → Pages → Create a project
-3. Connect your GitHub repository
-4. Configure build settings:
-   - **Build command:** `npm run build`
-   - **Build output directory:** `dist`
-5. Add environment variables:
-   - `D1_DATABASE_ID`: Your D1 database ID
-6. After first deploy, go to Settings → Functions:
-   - Add D1 binding: `DB` → `doctor-db`
-   - Add R2 binding: `R2` → `doctor-media`
-7. Run production migrations:
-
-```bash
-npm run db:migrate
-```
-
-### Option 2: Direct Upload
-
-```bash
-npm run build
-npx wrangler pages deploy dist
-```
+Set the clinic timezone with the `TIMEZONE` dashboard variable (defaults to
+`Asia/Dhaka`); "today" and "visiting hours ended" are evaluated in that zone.
 
 ## Project Structure
 
-```
+```text
 doctor-website/
 ├── src/                    # React frontend
 │   ├── components/         # Reusable components
@@ -193,8 +167,8 @@ doctor-website/
 │   ├── auth/               # Authentication endpoints
 │   ├── admin/              # Admin endpoints
 │   └── *.js                # Public endpoints
-├── migrations/             # D1 database migrations
-├── scripts/                # Utility scripts
+├── migrations/             # D1 schema (paste into the D1 console)
+├── scripts/                # reset.sql + seed.sql (paste into the D1 console)
 └── public/                 # Static assets
 ```
 
@@ -236,6 +210,10 @@ doctor-website/
 | GET | `/api/admin/schedule/day?chamber_id=1&date=…` | Resolved day + override + appointments |
 | PUT | `/api/admin/schedule/day` | Create/update a date-specific override |
 | DELETE | `/api/admin/schedule/day?chamber_id=1&date=…` | Remove override (back to chamber default) |
+| GET | `/api/admin/sections` | List home-page featured sections |
+| POST | `/api/admin/sections` | Create featured section |
+| PUT | `/api/admin/sections/:id` | Update featured section |
+| DELETE | `/api/admin/sections/:id` | Delete featured section |
 | GET | `/api/admin/services` | List all services |
 | POST | `/api/admin/services` | Create service |
 | PUT | `/api/admin/services/:id` | Update service |
@@ -252,6 +230,9 @@ doctor-website/
 | DELETE | `/api/admin/testimonials/:id` | Delete testimonial |
 | GET | `/api/admin/settings` | Get settings |
 | PUT | `/api/admin/settings` | Update settings |
+| GET | `/api/admin/seo` | List SEO records |
+| PUT | `/api/admin/seo` | Upsert SEO record |
+| DELETE | `/api/admin/seo` | Delete SEO record |
 | POST | `/api/admin/upload` | Upload image to R2 |
 
 ## Default Admin Login
@@ -259,15 +240,18 @@ doctor-website/
 - **Email:** admin@clinic.com
 - **Password:** admin123
 
-⚠️ Change the password after first login in production!
+⚠️ Change the password after first login (see step 7 of Setup)!
 
-## Environment Variables
+## Environment Variables & Bindings
 
-| Variable | Description |
-|----------|-------------|
-| `ADMIN_EMAIL` | Default admin email (for seeding) |
-| `ADMIN_PASSWORD` | Default admin password (for seeding) |
-| `TIMEZONE` | Clinic timezone for schedule resolution (default `Asia/Dhaka`) |
+Set per Pages project in the dashboard (Settings → Bindings / Environment
+variables, for both Production and Preview). Nothing is stored in git.
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `DB` | D1 binding | Yes | This website's database |
+| `R2` | R2 binding | Yes | This website's image bucket |
+| `TIMEZONE` | Variable | No | Clinic timezone (default `Asia/Dhaka`) |
 
 ## Routes
 
@@ -292,12 +276,15 @@ doctor-website/
 - `/admin/gallery` - Manage gallery
 - `/admin/testimonials` - Manage testimonials
 - `/admin/settings` - Clinic settings
+- `/admin/sections` - Home-page featured sections
+- `/admin/seo` - SEO settings
+- `/admin/privacy` - Privacy policy editor
 
 ## Customization
 
 ### Change Doctor Information
 
-Update the seed data in `scripts/seed.mjs` or edit via the admin dashboard at `/admin/profile`.
+Edit via the admin dashboard at `/admin/profile` (each website has its own data).
 
 ### Change Services
 
@@ -309,7 +296,7 @@ Global styles are in `src/styles/global.css`. CSS variables make it easy to chan
 
 ### Add Images
 
-Upload images via the admin dashboard. They're stored in Cloudflare R2.
+Upload images via the admin dashboard. They're stored in that website's own R2 bucket.
 
 ## Security Notes
 
@@ -319,6 +306,7 @@ Upload images via the admin dashboard. They're stored in Cloudflare R2.
 - File uploads are validated for type and size
 - All database queries use parameterized statements
 - No sensitive data is exposed in public API responses
+- The repo holds no bindings, IDs or secrets — each deployment adds its own
 
 ## License
 

@@ -1,11 +1,9 @@
 /* ==========================================================================
-   scripts/reset.sql - WIPE the database (all tables + all data)
+   scripts/reset.sql - WIPE one website's database (all tables + all data)
 
-   Use for a completely fresh start. Also drops d1_migrations (Wrangler's
-   bookkeeping table) so `wrangler d1 migrations apply` re-runs 001_initial.sql.
-
-   Cloudflare dashboard: D1 -> doctor-db -> Console -> paste this file -> Execute
-   CLI:  npm run db:reset  (remote)   |   npm run db:reset:local  (local)
+   Cloudflare dashboard: D1 -> your database -> Console -> paste -> Execute
+   Afterwards run migrations/001_initial.sql, then scripts/seed.sql (optional).
+   Also drops the d1_migrations bookkeeping table (harmless if absent).
    ========================================================================== */
 PRAGMA foreign_keys = OFF;
 

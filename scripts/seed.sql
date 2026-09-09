@@ -1,9 +1,8 @@
 /* ==========================================================================
-   scripts/seed.sql - sample data for a fresh database
-   (generated from scripts/seed.mjs - keep both in sync)
+   scripts/seed.sql - starter data for one website's fresh database
 
-   Cloudflare dashboard: D1 -> doctor-db -> Console -> paste this file -> Execute
-   Run AFTER migrations/001_initial.sql.
+   Cloudflare dashboard: D1 -> your database -> Console -> paste -> Execute
+   Run AFTER migrations/001_initial.sql (fresh installs need only 001).
 
    Admin login: admin@clinic.com / admin123   (change the password after first login!)
    Safe to re-run: every insert is skipped if the row already exists.

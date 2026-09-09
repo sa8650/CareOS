@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Award, Shield, Star, ChevronRight, Calendar, Building2, MapPin, Phone, Clock } from 'lucide-react';
+import { ArrowRight, Award, Shield, Star, ChevronLeft, ChevronRight, Calendar, Building2, MapPin, Phone, Clock } from 'lucide-react';
 import { fetchDoctor, fetchServices, fetchTestimonials, fetchChambers, fetchSections } from '../api/api';
 import Marquee from '../components/Marquee';
 import FeaturedSection from '../components/FeaturedSection';
@@ -11,20 +11,67 @@ export default function Home() {
   const [services, setServices] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
 
-  // Split reviews into 1 or 2 marquee rows; each row is repeated until it is long enough to
-  // loop seamlessly on wide screens.
-  const testimonialRows = (() => {
-    if (!testimonials.length) return [];
-    const rows = testimonials.length >= 4
-      ? [testimonials.filter((_, i) => i % 2 === 0), testimonials.filter((_, i) => i % 2 === 1)]
-      : [testimonials];
-    const MIN = 6;
-    return rows.map(r => {
-      const out = [];
-      while (out.length < MIN) out.push(...r);
-      return out.map((t, i) => ({ ...t, id: `${t.id}-${i}` }));
-    });
-  })();
+  // Single-row MANUAL testimonial carousel: arrow buttons, dots, touch swipe,
+  // mouse drag and keyboard arrows. No auto-scroll.
+  const trackRef = useRef(null);
+  const dragRef = useRef({ down: false, startX: 0, startScroll: 0 });
+  const [canPrev, setCanPrev] = useState(false);
+  const [canNext, setCanNext] = useState(false);
+  const [activePage, setActivePage] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
+  const [dragging, setDragging] = useState(false);
+
+  const updateNav = useCallback(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    setCanPrev(el.scrollLeft > 8);
+    setCanNext(el.scrollLeft < maxScroll - 8);
+    const pages = maxScroll <= 8 ? 1 : Math.max(2, Math.round(el.scrollWidth / el.clientWidth));
+    setPageCount(pages);
+    setActivePage(maxScroll > 0 ? Math.min(pages - 1, Math.round((el.scrollLeft / maxScroll) * (pages - 1))) : 0);
+  }, []);
+
+  useEffect(() => {
+    updateNav();
+    window.addEventListener('resize', updateNav);
+    return () => window.removeEventListener('resize', updateNav);
+  }, [testimonials, updateNav]);
+
+  const smoothBehavior = () =>
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+
+  const scrollByPage = (dir) => {
+    const el = trackRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: smoothBehavior() });
+  };
+
+  const scrollToPage = (page) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    el.scrollTo({ left: pageCount <= 1 ? 0 : (page / (pageCount - 1)) * maxScroll, behavior: smoothBehavior() });
+  };
+
+  // Mouse drag-to-scroll (touch swipe works natively via overflow-x).
+  const onDragStart = (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    const el = trackRef.current;
+    if (!el) return;
+    dragRef.current = { down: true, startX: e.clientX, startScroll: el.scrollLeft };
+    setDragging(true);
+  };
+  const onDragMove = (e) => {
+    const d = dragRef.current;
+    const el = trackRef.current;
+    if (!d.down || !el) return;
+    el.scrollLeft = d.startScroll - (e.clientX - d.startX);
+  };
+  const onDragEnd = () => {
+    dragRef.current.down = false;
+    setDragging(false);
+  };
   const [chambers, setChambers] = useState([]);
   const [sections, setSections] = useState([]);
 
@@ -255,43 +302,91 @@ export default function Home() {
         </section>
       )}
 
-      {/* Testimonials */}
+      {/* Testimonials — single row, manual scroll (arrows / dots / swipe / drag) */}
       {testimonials.length > 0 && (
         <section className="section section-alt">
           <div className="container">
-            <div className="section-header">
-              <span className="section-tag">Testimonials</span>
-              <h2 className="section-title">What My Patients Say</h2>
+            <div className="section-header testi-header">
+              <div className="testi-heading">
+                <span className="section-tag">Testimonials</span>
+                <h2 className="section-title">What My Patients Say</h2>
+              </div>
+              {pageCount > 1 && (
+                <div className="testi-nav">
+                  <button
+                    type="button"
+                    className="testi-nav-btn"
+                    onClick={() => scrollByPage(-1)}
+                    disabled={!canPrev}
+                    aria-label="Previous testimonials"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button
+                    type="button"
+                    className="testi-nav-btn"
+                    onClick={() => scrollByPage(1)}
+                    disabled={!canNext}
+                    aria-label="Next testimonials"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-          {/* Continuous left/right scroller: row 1 drifts left, row 2 (when there are 4+ reviews)
-              drifts right. Pauses on hover / focus; static wrap under prefers-reduced-motion. */}
-          {testimonialRows.map((row, ri) => (
-            <div key={ri} className={`testimonial-marquee ${ri % 2 ? 'testimonial-marquee--reverse' : ''}`}
-              style={{ '--marquee-duration': `${Math.max(28, row.length * 9)}s` }}>
-              <div className="testimonial-track">
-                {[0, 1].map(dup => (
-                  <div className="testimonial-group" key={dup} aria-hidden={dup === 1}>
-                    {row.map(t => (
-                      <div key={`${dup}-${t.id}`} className="testimonial-card">
-                        <div className="card-body">
-                          <div className="testimonial-quote">“</div>
-                          <div className="testimonial-stars" aria-label={`${t.rating} out of 5 stars`}>
-                            {'★'.repeat(t.rating)}{'☆'.repeat(5 - t.rating)}
-                          </div>
-                          <p className="testimonial-text">"{t.review}"</p>
-                          <div className="testimonial-author">
-                            <div className="testimonial-avatar">{t.name[0]}</div>
-                            <span>{t.name}</span>
-                          </div>
-                        </div>
+            <div
+              ref={trackRef}
+              className={`testi-track${dragging ? ' dragging' : ''}`}
+              role="region"
+              aria-roledescription="carousel"
+              aria-label="Patient testimonials — scroll horizontally"
+              tabIndex={0}
+              onScroll={updateNav}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowLeft') { e.preventDefault(); scrollByPage(-1); }
+                if (e.key === 'ArrowRight') { e.preventDefault(); scrollByPage(1); }
+              }}
+              onPointerDown={onDragStart}
+              onPointerMove={onDragMove}
+              onPointerUp={onDragEnd}
+              onPointerCancel={onDragEnd}
+              onPointerLeave={onDragEnd}
+            >
+              {testimonials.map((t) => {
+                const rating = Number.isFinite(+t.rating) ? Math.min(5, Math.max(0, +t.rating)) : 5;
+                return (
+                  <article key={t.id} className="testimonial-card testi-slide">
+                    <div className="card-body">
+                      <div className="testimonial-quote" aria-hidden="true">“</div>
+                      <div className="testimonial-stars" aria-label={`${rating} out of 5 stars`}>
+                        {'★'.repeat(rating)}{'☆'.repeat(5 - rating)}
                       </div>
-                    ))}
-                  </div>
+                      <p className="testimonial-text">"{t.review}"</p>
+                      <div className="testimonial-author">
+                        <div className="testimonial-avatar">{(t.name || '?')[0]}</div>
+                        <span>{t.name}</span>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            {pageCount > 1 && (
+              <div className="testi-dots" role="tablist" aria-label="Testimonial pages">
+                {Array.from({ length: pageCount }).map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    role="tab"
+                    aria-selected={i === activePage}
+                    aria-label={`Go to testimonials page ${i + 1}`}
+                    className={`testi-dot${i === activePage ? ' active' : ''}`}
+                    onClick={() => scrollToPage(i)}
+                  />
                 ))}
               </div>
-            </div>
-          ))}
+            )}
+          </div>
         </section>
       )}
 
@@ -454,23 +549,44 @@ export default function Home() {
         .chamber-days-text { font-weight: 600; color: #e2e8f0; }
         .chamber-card-btn { margin-top: auto; align-self: flex-start; margin-top: 1.25rem; }
 
-        /* Testimonials — soft band, white cards, continuous left/right scroll */
-        .testimonial-marquee {
-          position: relative; overflow: hidden; width: 100%; padding: 0.75rem 0;
-          -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-                  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+        /* Testimonials — single row, manual scroll (arrows / dots / swipe / drag) */
+        .testi-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; text-align: left; max-width: none; }
+        .testi-header .section-title { margin-bottom: 0; }
+        .testi-header .section-tag { margin-bottom: 0.5rem; }
+        .testi-nav { display: flex; gap: 0.5rem; flex-shrink: 0; padding-bottom: 0.15rem; }
+        .testi-nav-btn {
+          width: 44px; height: 44px; border-radius: 50%;
+          display: inline-flex; align-items: center; justify-content: center;
+          background: #fff; border: 1px solid var(--color-border);
+          color: var(--color-primary-dark); cursor: pointer; box-shadow: var(--shadow-sm);
+          transition: background 0.25s, color 0.25s, border-color 0.25s, transform 0.25s, opacity 0.25s;
         }
-        .testimonial-track { display: flex; width: max-content; animation: testimonial-scroll var(--marquee-duration, 40s) linear infinite; }
-        .testimonial-marquee--reverse .testimonial-track { animation-direction: reverse; }
-        .testimonial-marquee:hover .testimonial-track,
-        .testimonial-marquee:focus-within .testimonial-track { animation-play-state: paused; }
-        .testimonial-group { display: flex; gap: 1.25rem; padding-right: 1.25rem; }
-        @keyframes testimonial-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .testi-nav-btn:hover:not(:disabled) { background: var(--color-primary); border-color: var(--color-primary); color: #fff; transform: translateY(-1px); }
+        .testi-nav-btn:disabled { opacity: 0.35; cursor: default; }
+        .testi-track {
+          display: flex; gap: 1.25rem;
+          overflow-x: auto; overscroll-behavior-x: contain;
+          scroll-snap-type: x mandatory; scroll-padding: 0.25rem;
+          padding: 0.75rem 0.25rem 1rem; margin: 0 -0.25rem;
+          scrollbar-width: none; -ms-overflow-style: none;
+          cursor: grab;
+        }
+        .testi-track::-webkit-scrollbar { display: none; }
+        .testi-track.dragging { cursor: grabbing; scroll-snap-type: none; scroll-behavior: auto; user-select: none; -webkit-user-select: none; }
+        .testi-track.dragging .testimonial-card { pointer-events: none; }
+        .testi-track:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; border-radius: 12px; }
+        .testi-slide { scroll-snap-align: start; }
+        .testi-dots { display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+        .testi-dot { width: 8px; height: 8px; border-radius: 999px; border: none; padding: 0; background: #cbd5e1; cursor: pointer; transition: width 0.25s, background 0.25s; }
+        .testi-dot:hover { background: #94a3b8; }
+        .testi-dot.active { width: 28px; background: var(--color-primary); }
         @media (prefers-reduced-motion: reduce) {
-          .testimonial-marquee { mask-image: none; -webkit-mask-image: none; }
-          .testimonial-track { animation: none; width: auto; flex-wrap: wrap; justify-content: center; }
-          .testimonial-group[aria-hidden="true"] { display: none; }
-          .testimonial-group { flex-wrap: wrap; justify-content: center; padding-right: 0; }
+          .testi-track { scroll-behavior: auto; }
+          .testi-nav-btn, .testi-dot { transition: none; }
+        }
+        @media (max-width: 640px) {
+          .testi-header { align-items: center; }
+          .testi-nav-btn { width: 40px; height: 40px; }
         }
         .testimonial-card {
           position: relative; text-align: center; background: #fff; border: 1px solid var(--color-border); border-radius: 20px;
