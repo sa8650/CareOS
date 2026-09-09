@@ -1,19 +1,17 @@
-# CareOS — one repo, many doctor websites (SaaS template).
-#
-# This file contains NO database / storage bindings and NO secrets — on purpose.
-# Every website is a separate Cloudflare Pages project connected to this same
-# repo, and each project connects its OWN resources in the dashboard:
-#
-#   Pages → your project → Settings → Bindings (set for BOTH Production and Preview):
-#     • D1 database:  variable name `DB`  →  your D1 database
-#     • R2 bucket:    variable name `R2`  →  your R2 bucket
-#   Pages → Settings → Environment variables (optional):
-#     • TIMEZONE  (e.g. Asia/Dhaka — the code defaults to Asia/Dhaka if unset)
-#
-# After adding bindings: Deployments → (⋯) → Retry deployment.
-# (Note: Cloudflare Pages projects connected to Git do not read bindings
-# from this file at all — the dashboard is the only source of truth.)
-
 name = "doctor-portfolio"
 compatibility_date = "2024-12-01"
 pages_build_output_dir = "./dist"
+
+[vars]
+ENVIRONMENT = "production"
+# Clinic timezone used by the schedule engine ("today", visiting-hours cut-off)
+TIMEZONE = "Asia/Dhaka"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "doctor-db"
+database_id = "590a6ede-a027-4b9a-ab4a-41a90f607a2b"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "doctor-media"
