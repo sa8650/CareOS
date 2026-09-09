@@ -36,17 +36,17 @@ export default function Login() {
             <p>Sign in to manage your practice</p>
           </div>
 
-          {error && <div className="login-error">{error}</div>}
+          {error && <div className="login-error" role="alert">{error}</div>}
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label className="form-label"><Mail size={14} /> Email</label>
-              <input type="email" className="form-input" value={email}
+              <label className="form-label" htmlFor="login-email"><Mail size={14} /> Email</label>
+              <input id="login-email" type="email" className="form-input" value={email} autoComplete="username"
                 onChange={e => setEmail(e.target.value)} placeholder="admin@clinic.com" required />
             </div>
             <div className="form-group">
-              <label className="form-label"><Lock size={14} /> Password</label>
-              <input type="password" className="form-input" value={password}
+              <label className="form-label" htmlFor="login-password"><Lock size={14} /> Password</label>
+              <input id="login-password" type="password" className="form-input" value={password} autoComplete="current-password"
                 onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
             </div>
             <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={loading}>

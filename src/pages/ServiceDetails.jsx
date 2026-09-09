@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Clock, DollarSign, CheckCircle, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
+import { Clock, CheckCircle, ChevronDown, ChevronUp, ArrowRight, Sparkles, Calendar, HelpCircle } from 'lucide-react';
 import { fetchService } from '../api/api';
 import { formatPrice } from '../utils/helpers';
 
@@ -40,12 +40,19 @@ export default function ServiceDetails() {
     <div>
       <section className="page-hero">
         <div className="container">
+          <span className="page-hero-tag"><Sparkles size={15} /> Treatment</span>
           <h1>{service.name}</h1>
           <p>Professional treatment with proven results</p>
+          {(service.duration_minutes || service.price) ? (
+            <div className="sd-hero-meta">
+              {service.duration_minutes ? <span><Clock size={15} /> {service.duration_minutes} min session</span> : null}
+              {service.price ? <span>{formatPrice(service.price)}</span> : null}
+            </div>
+          ) : null}
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section-alt">
         <div className="container sd-layout">
           <div className="sd-content">
             {service.image_url && (
@@ -83,7 +90,7 @@ export default function ServiceDetails() {
 
             {faq.length > 0 && (
               <div className="sd-faq">
-                <h2>Frequently Asked Questions</h2>
+                <h2><HelpCircle size={20} /> Frequently Asked Questions</h2>
                 {faq.map((f, i) => (
                   <div key={i} className="sd-faq-item" onClick={() => setOpenFaq(openFaq === i ? null : i)}>
                     <div className="sd-faq-question">
@@ -98,45 +105,56 @@ export default function ServiceDetails() {
           </div>
 
           <div className="sd-sidebar">
-            <div className="sd-cta card">
-              <div className="card-body" style={{ textAlign: 'center' }}>
-                <h3>Book This Treatment</h3>
-                <p style={{ color: 'var(--color-text-light)', fontSize: '0.9rem', margin: '0.75rem 0 1.25rem' }}>
-                  Schedule your {service.name} appointment today.
-                </p>
-                <Link to="/appointment" className="btn btn-primary btn-lg" style={{ width: '100%' }}>
-                  Book Appointment <ArrowRight size={18} />
-                </Link>
-              </div>
+            <div className="sd-cta">
+              <span className="sd-cta-icon"><Calendar size={22} /></span>
+              <h3>Book This Treatment</h3>
+              <p>Schedule your {service.name} appointment today. You'll receive a serial number instantly.</p>
+              <Link to="/appointment" className="btn btn-primary btn-lg" style={{ width: '100%' }}>
+                Book Appointment <ArrowRight size={18} />
+              </Link>
+              <Link to="/services" className="sd-cta-back">← All services</Link>
             </div>
           </div>
         </div>
       </section>
 
       <style>{`
-        .page-hero { padding: 8rem 0 3rem; background: linear-gradient(135deg, #f0f9ff, #e0f2fe); text-align: center; }
-        .page-hero h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
-        .page-hero p { color: var(--color-text-light); font-size: 1.1rem; }
-        .sd-layout { display: grid; grid-template-columns: 1fr 350px; gap: 3rem; align-items: start; }
-        .sd-image { border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 2rem; }
-        .sd-image img { width: 100%; height: auto; }
-        .sd-description h2, .sd-benefits h2, .sd-faq h2 { font-size: 1.5rem; margin-bottom: 1rem; }
-        .sd-description p { color: var(--color-text-light); line-height: 1.8; font-size: 1.05rem; margin-bottom: 2rem; }
+        .sd-hero-meta { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.1rem; }
+        .sd-hero-meta span { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.95rem; background: rgba(255,255,255,0.85); border: 1px solid rgba(14,165,233,0.2); border-radius: var(--radius-full); font-size: 0.85rem; font-weight: 600; color: var(--color-text); }
+        .sd-hero-meta svg { color: var(--color-primary); }
+        .sd-layout { display: grid; grid-template-columns: 1fr 340px; gap: 2.5rem; align-items: start; }
+        .sd-content { background: #fff; border: 1px solid var(--color-border); border-radius: 24px; padding: 2.25rem; box-shadow: var(--shadow-card); }
+        .sd-image { border-radius: var(--radius-xl); overflow: hidden; margin-bottom: 2rem; box-shadow: var(--shadow-md); }
+        .sd-image img { width: 100%; height: auto; max-height: 420px; object-fit: cover; }
+        .sd-description h2, .sd-benefits h2, .sd-faq h2 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.4rem; letter-spacing: -0.01em; margin-bottom: 1rem; }
+        .sd-faq h2 svg { color: var(--color-primary); }
+        .sd-description p { color: var(--color-text-light); line-height: 1.8; font-size: 1.05rem; margin-bottom: 2rem; white-space: pre-line; }
         .sd-description-list { list-style: none; margin-bottom: 2rem; }
-        .sd-description-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--color-border); color: var(--color-text); font-size: 0.95rem; }
+        .sd-description-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--color-border); color: var(--color-text); font-size: 0.95rem; line-height: 1.6; }
         .sd-description-list li:last-child { border-bottom: none; }
-        .sd-description-list li svg { color: var(--color-success); flex-shrink: 0; margin-top: 0.125rem; }
+        .sd-description-list li svg { color: var(--color-success); flex-shrink: 0; margin-top: 0.25rem; }
         .sd-benefit-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 2rem; }
-        .sd-benefit { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
+        .sd-benefit { display: flex; align-items: center; gap: 0.6rem; font-weight: 500; font-size: 0.95rem; padding: 0.8rem 1rem; background: var(--color-bg-soft); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
         .sd-benefit svg { color: var(--color-success); flex-shrink: 0; }
-        .sd-faq-item { border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 0.5rem; overflow: hidden; cursor: pointer; }
-        .sd-faq-question { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; font-weight: 600; }
-        .sd-faq-answer { padding: 0 1.25rem 1rem; color: var(--color-text-light); font-size: 0.95rem; line-height: 1.6; }
-        .sd-cta { position: sticky; top: 90px; }
-        @media (max-width: 768px) {
-          .sd-layout { grid-template-columns: 1fr; }
-          .sd-benefit-list { grid-template-columns: 1fr; }
+        .sd-faq-item { border: 1px solid var(--color-border); border-radius: var(--radius-lg); margin-bottom: 0.6rem; overflow: hidden; cursor: pointer; background: #fff; transition: border-color 0.2s, box-shadow 0.2s; }
+        .sd-faq-item:hover { border-color: rgba(14,165,233,0.35); }
+        .sd-faq-question { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; font-weight: 600; }
+        .sd-faq-question svg { color: var(--color-primary); flex-shrink: 0; }
+        .sd-faq-answer { padding: 0 1.25rem 1.1rem; color: var(--color-text-light); font-size: 0.95rem; line-height: 1.7; white-space: pre-line; }
+        .sd-cta { position: sticky; top: 90px; text-align: center; padding: 1.75rem 1.5rem; border-radius: 24px; background: #fff; border: 1px solid var(--color-border); box-shadow: var(--shadow-card); }
+        .sd-cta-icon { width: 52px; height: 52px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; background: var(--gradient-brand); color: #fff; margin-bottom: 0.9rem; box-shadow: 0 10px 20px -10px rgba(14,165,233,0.8); }
+        .sd-cta h3 { font-size: 1.15rem; margin-bottom: 0.5rem; }
+        .sd-cta p { color: var(--color-text-light); font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.25rem; }
+        .sd-cta-back { display: inline-block; margin-top: 0.9rem; font-size: 0.85rem; font-weight: 600; color: var(--color-text-light); }
+        .sd-cta-back:hover { color: var(--color-primary); }
+        @media (max-width: 900px) {
+          .sd-layout { grid-template-columns: 1fr; gap: 1.5rem; }
           .sd-cta { position: static; }
+        }
+        @media (max-width: 768px) {
+          .sd-content { padding: 1.4rem 1.1rem; border-radius: 20px; }
+          .sd-benefit-list { grid-template-columns: 1fr; }
+          .sd-description h2, .sd-benefits h2, .sd-faq h2 { font-size: 1.2rem; }
         }
       `}</style>
     </div>

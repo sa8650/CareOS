@@ -35,43 +35,95 @@ database_id = "YOUR_DATABASE_ID"
 
 ### 3. Run Migrations
 
+There is a single migration, `migrations/001_initial.sql`, which creates the
+complete schema (portfolio tables + chambers + schedule overrides + appointments).
+
 ```bash
 # Local development
 npm run db:migrate:local
 
-# Production
+# Production (remote D1)
 npm run db:migrate
 ```
 
 ### 4. Seed Sample Data
 
 ```bash
-npm run seed
+npm run seed          # local database
+npm run seed:remote   # production database
 ```
 
-This creates:
-- Admin account (admin@clinic.com / admin123)
-- Sample doctor profile
-- 6 sample services
-- Availability schedule (Mon-Fri 9-5, Sat 9-1)
-- Sample testimonials
-- Basic settings
+### Fresh start (wipe everything)
 
-### 5. Start Development Server
+To drop **all tables and all data** and rebuild from scratch:
+
+**Option A — Cloudflare dashboard (no local tools needed)**
+
+Open Workers & Pages → D1 → `doctor-db` → **Console**, then paste and execute
+these files one after another (each is a single paste):
+
+1. `scripts/reset.sql` — drops every table (⚠️ irreversible)
+2. `migrations/001_initial.sql` — creates the complete schema
+3. `scripts/seed.sql` — optional sample data (admin login, doctor, services, 2 chambers)
+
+All three files are written so that they survive the console's line-joining
+(block comments only, no semicolons inside comments) and can be re-run safely.
+
+**Option B — CLI**
 
 ```bash
-npm run pages:dev
+# Local
+npm run db:fresh:local     # = db:reset:local + db:migrate:local + seed
+
+# Production  ⚠️  destroys all remote data — irreversible
+npm run db:fresh           # = db:reset + db:migrate + seed:remote
 ```
 
-This runs Vite with Cloudflare Pages Functions, D1, and R2 bindings.
+`db:reset` runs `scripts/reset.sql`, which also drops Wrangler's
+`d1_migrations` bookkeeping table so the migration is re-applied cleanly.
 
-Visit `http://localhost:8788` for the full app with API.
+## Appointment & Schedule System
 
-For frontend-only development:
+Scheduling is **chamber-specific and fully dynamic**. Nothing is pre-generated:
+every date is resolved on demand by one central engine
+(`functions/api/_lib/schedule.js`) that is shared by the admin Schedule page,
+the patient booking page, the availability API and the booking API.
 
-```bash
-npm run dev
 ```
+Chamber Default Schedule  +  Date-Specific Override  +  Real-time Appointment Count
+```
+
+| Layer | Table | What it stores |
+|-------|-------|----------------|
+| Chambers | `chambers` | name, address, phone, `visiting_days` (JSON `[0..6]`, 0 = Sunday), default `start_time` / `end_time`, `daily_limit` |
+| Overrides | `schedule_overrides` | **one row per (chamber, date) only when an admin edits that date**: status (`available` / `off` / `closed`), start/end time, appointment limit, note. `NULL` fields inherit the chamber default |
+| Appointments | `appointments` | patient + `chamber_id` + `appointment_date` + `serial_number` + status |
+
+Resolution order for any (chamber, date): chamber default → override (if any) →
+Available / Off / Closed → count booked appointments → remaining capacity →
+`full` when booked ≥ limit. Booking is enforced server-side inside a single
+atomic `INSERT … WHERE count < limit` guarded by a unique
+`(chamber_id, date, serial_number)` index, so capacity can never be exceeded
+even under concurrent requests.
+
+Statuses: **Available** (bookable), **Off** (not a visiting day), **Closed**
+(visiting day disabled by admin for that date), **Full** (computed
+automatically).
+
+Set the clinic timezone with the `TIMEZONE` variable (defaults to `Asia/Dhaka`);
+"today" and "visiting hours ended" are evaluated in that zone.
+
+### Upgrading an existing deployment
+
+The schema is shipped as one consolidated migration, so an existing database
+that ran the *old* `001_initial.sql` must be reset:
+
+1. Reset the database (see *Fresh start* above — dashboard console or
+   `npm run db:fresh`). ⚠️ This deletes all existing rows.
+2. Open **Admin → Chambers** and set visiting days, hours and daily limit for
+   each chamber. Until a chamber has visiting days every date resolves to *Off*.
+3. Optionally add `TIMEZONE` under Pages → Settings → Environment variables
+   (it is also set in `wrangler.toml`).
 
 ## R2 Storage Setup
 
@@ -137,6 +189,7 @@ doctor-website/
 │   ├── utils/              # Helpers
 │   └── styles/             # Global CSS
 ├── functions/api/          # Cloudflare Pages Functions (API)
+│   ├── _lib/schedule.js    # Central schedule resolution engine
 │   ├── auth/               # Authentication endpoints
 │   ├── admin/              # Admin endpoints
 │   └── *.js                # Public endpoints
@@ -155,8 +208,11 @@ doctor-website/
 | GET | `/api/services/:slug` | Service details |
 | GET | `/api/gallery` | Published gallery images |
 | GET | `/api/testimonials` | Published testimonials |
-| GET | `/api/availability` | Availability schedule |
-| POST | `/api/appointments` | Book appointment |
+| GET | `/api/chambers` | Active chambers with default schedule |
+| GET | `/api/availability?chamber_id=1` | Resolved next-30-days schedule for a chamber |
+| GET | `/api/availability?chamber_id=1&date=YYYY-MM-DD` | Resolved single day |
+| POST | `/api/appointments` | Book appointment (`chamber_id`, `date`, `name`, `phone`, `email?`, `message?`) → serial number |
+| GET | `/api/appointments/:reference` | Appointment lookup |
 
 ### Auth
 | Method | Endpoint | Description |
@@ -169,8 +225,17 @@ doctor-website/
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/admin/stats` | Dashboard statistics |
-| GET | `/api/admin/appointments` | List appointments |
-| PUT | `/api/admin/appointments/:id` | Update appointment |
+| GET | `/api/admin/appointments` | List appointments (`status`, `date`, `from`, `to`, `chamber_id`, `search`, `limit`) |
+| PUT | `/api/admin/appointments/:id` | Update status / note, or move to another chamber & date (capacity checked, new serial) |
+| DELETE | `/api/admin/appointments/:id` | Delete appointment |
+| GET | `/api/admin/chambers` | List chambers |
+| POST | `/api/admin/chambers` | Create chamber |
+| PUT | `/api/admin/chambers/:id` | Update chamber (partial) |
+| DELETE | `/api/admin/chambers/:id` | Delete chamber (`?force=1` if it has upcoming appointments) |
+| GET | `/api/admin/schedule?chamber_id=1` | Dynamic 30-day calendar for a chamber |
+| GET | `/api/admin/schedule/day?chamber_id=1&date=…` | Resolved day + override + appointments |
+| PUT | `/api/admin/schedule/day` | Create/update a date-specific override |
+| DELETE | `/api/admin/schedule/day?chamber_id=1&date=…` | Remove override (back to chamber default) |
 | GET | `/api/admin/services` | List all services |
 | POST | `/api/admin/services` | Create service |
 | PUT | `/api/admin/services/:id` | Update service |
@@ -187,8 +252,6 @@ doctor-website/
 | DELETE | `/api/admin/testimonials/:id` | Delete testimonial |
 | GET | `/api/admin/settings` | Get settings |
 | PUT | `/api/admin/settings` | Update settings |
-| GET | `/api/admin/availability` | Get availability |
-| PUT | `/api/admin/availability` | Update availability |
 | POST | `/api/admin/upload` | Upload image to R2 |
 
 ## Default Admin Login
@@ -204,6 +267,7 @@ doctor-website/
 |----------|-------------|
 | `ADMIN_EMAIL` | Default admin email (for seeding) |
 | `ADMIN_PASSWORD` | Default admin password (for seeding) |
+| `TIMEZONE` | Clinic timezone for schedule resolution (default `Asia/Dhaka`) |
 
 ## Routes
 
@@ -221,6 +285,8 @@ doctor-website/
 - `/admin/login` - Admin login
 - `/admin` - Dashboard
 - `/admin/appointments` - Manage appointments
+- `/admin/schedule` - Chamber calendar (next 30 days) & date overrides
+- `/admin/chambers` - Chambers with visiting days / hours / daily limit
 - `/admin/services` - Manage services
 - `/admin/profile` - Edit doctor profile
 - `/admin/gallery` - Manage gallery

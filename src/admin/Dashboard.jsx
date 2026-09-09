@@ -1,96 +1,97 @@
-import { useState, useEffect } from 'react';
-import { Calendar, Clock, CheckCircle, XCircle, BarChart3 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Building2, CalendarCheck, CalendarDays, Clock, RefreshCw, Stethoscope } from 'lucide-react';
+
+import { BentoGrid } from '@/components/ui/bento-grid';
 import { adminGet } from '../api/api';
+import { formatDate } from '../utils/helpers';
+import DashboardStatCard from './components/DashboardStatCard';
+import DashboardScheduleCard from './components/DashboardScheduleCard';
+import UpcomingAppointments from './components/UpcomingAppointments';
+import QuickActions from './components/QuickActions';
+import DashboardSkeleton from './components/DashboardSkeleton';
+
+/*
+  Admin dashboard — Magic UI Bento Grid over real CareOS data.
+  One request (GET /api/admin/stats) feeds every card; no polling, no duplicate calls.
+
+  Desktop (3 columns):
+    Total | Today | Upcoming
+    Today's Schedule (2 wide, 2 tall) | Chambers
+                                      | Services
+    Upcoming Appointments (2 wide, 2 tall) | Quick Actions (2 tall)
+  Tablet: 2 columns (wide cards stay wide). Phone: single column, natural stacking.
+*/
+
+// 1 column on phones, 2 on tablets / narrow laptops (the fixed sidebar eats 260px), 3 from xl.
+// Rows are minmax(12rem, auto) so a wide card grows with its table instead of clipping; on xl
+// the wide cards span two rows so they sit beside a pair of stat cards. Dense flow only matters
+// in the 2-column layout: it lets single cards fill the slot before a wide card (no empty holes).
+const GRID = 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3 md:grid-flow-dense auto-rows-[minmax(12rem,auto)]';
+const WIDE = 'md:col-span-2 xl:row-span-2';
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({ today: 0, pending: 0, confirmed: 0, completed: 0, total: 0 });
-  const [recentAppointments, setRecentAppointments] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    Promise.all([
-      adminGet('/stats'),
-      adminGet('/appointments?limit=5'),
-    ]).then(([s, a]) => {
-      setStats(s);
-      setRecentAppointments(a);
-    }).catch(() => {}).finally(() => setLoading(false));
+  const load = useCallback(() => {
+    setLoading(true);
+    setError('');
+    return adminGet('/stats')
+      .then(setStats)
+      .catch((e) => setError(e.message || 'Unable to load dashboard data.'))
+      .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="loading-page"><div className="spinner" /></div>;
+  useEffect(() => { load(); }, [load]);
 
-  const statCards = [
-    { icon: <Calendar />, value: stats.today, label: "Today's Appointments", color: '#0ea5e9' },
-    { icon: <Clock />, value: stats.pending, label: 'Pending', color: '#f59e0b' },
-    { icon: <CheckCircle />, value: stats.confirmed, label: 'Confirmed', color: '#10b981' },
-    { icon: <BarChart3 />, value: stats.completed, label: 'Completed', color: '#8b5cf6' },
-    { icon: <XCircle />, value: stats.total, label: 'Total', color: '#64748b' },
-  ];
+  const today = stats?.date;
 
   return (
     <div>
-      <h1 className="admin-page-title">Dashboard</h1>
-
-      <div className="dashboard-stats">
-        {statCards.map((s, i) => (
-          <div key={i} className="stat-card card">
-            <div className="card-body">
-              <div className="stat-card-icon" style={{ color: s.color, background: s.color + '15' }}>{s.icon}</div>
-              <div className="stat-card-value">{s.value}</div>
-              <div className="stat-card-label">{s.label}</div>
-            </div>
-          </div>
-        ))}
+      <div className="admin-page-header">
+        <div>
+          <h1 className="admin-page-title">Dashboard</h1>
+          {today && <p className="text-sm text-neutral-500 mt-1">{formatDate(today)}</p>}
+        </div>
+        <div className="flex gap-2">
+          <Link to="/admin/appointments?status=pending" className="btn btn-secondary btn-sm">
+            <Clock size={15} /> Pending{stats?.pending ? ` (${stats.pending})` : ''}
+          </Link>
+          <Link to="/admin/schedule" className="btn btn-primary btn-sm"><CalendarDays size={15} /> Schedule</Link>
+        </div>
       </div>
 
-      <div className="dashboard-recent">
-        <h2>Recent Appointments</h2>
-        {recentAppointments.length === 0 ? (
-          <p style={{ color: 'var(--color-text-light)' }}>No appointments yet.</p>
-        ) : (
-          <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Reference</th>
-                  <th>Patient</th>
-                  <th>Service</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentAppointments.map(a => (
-                  <tr key={a.id}>
-                    <td><strong>{a.reference}</strong></td>
-                    <td>{a.patient_name}</td>
-                    <td>{a.service_name}</td>
-                    <td>{a.appointment_date}</td>
-                    <td>{a.start_time}</td>
-                    <td><span className={`badge badge-${a.status}`}>{a.status}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {loading && <DashboardSkeleton />}
 
-      <style>{`
-        .admin-page-title { font-size: 1.75rem; margin-bottom: 2rem; }
-        .dashboard-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2.5rem; }
-        .stat-card .card-body { text-align: center; padding: 1.25rem; }
-        .stat-card-icon {
-          width: 48px; height: 48px; border-radius: var(--radius-lg);
-          display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem;
-        }
-        .stat-card-value { font-size: 2rem; font-weight: 800; }
-        .stat-card-label { font-size: 0.85rem; color: var(--color-text-light); }
-        .dashboard-recent h2 { font-size: 1.25rem; margin-bottom: 1rem; }
-        @media (max-width: 1024px) { .dashboard-stats { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 640px) { .dashboard-stats { grid-template-columns: repeat(2, 1fr); } }
-      `}</style>
+      {!loading && error && (
+        <div role="alert" className="rounded-xl border border-line bg-white p-8 text-center [box-shadow:0_0_0_1px_rgba(0,0,0,.03),0_2px_4px_rgba(0,0,0,.05)]">
+          <p className="font-medium text-neutral-800">Unable to load dashboard data.</p>
+          <p className="mt-1 text-sm text-neutral-500">{error}</p>
+          <button type="button" onClick={load} className="btn btn-primary btn-sm mt-4"><RefreshCw size={14} /> Retry</button>
+        </div>
+      )}
+
+      {!loading && !error && stats && (
+        <BentoGrid className={GRID}>
+          <DashboardStatCard name="Total Appointments" Icon={CalendarDays} value={stats.total} unit="appointments"
+            hint={`${stats.completed} completed · ${stats.pending} pending`} to="/admin/appointments" />
+          <DashboardStatCard name="Today's Appointments" Icon={CalendarCheck} value={stats.today} unit="today"
+            hint={today ? formatDate(today) : undefined} to={today ? `/admin/appointments?date=${today}` : '/admin/appointments'} />
+          <DashboardStatCard name="Upcoming Appointments" Icon={Clock} value={stats.upcoming} unit="upcoming"
+            hint="From today onwards" to="/admin/appointments" />
+
+          <DashboardScheduleCard date={today} chambers={stats.schedule_today || []} className={WIDE} />
+          <DashboardStatCard name="Chambers" Icon={Building2} value={stats.chambers} unit="active"
+            hint={stats.chambers === 0 ? 'No chambers configured' : `${stats.chambers_total} configured`} to="/admin/chambers" />
+          <DashboardStatCard name="Services" Icon={Stethoscope} value={stats.services} unit="active"
+            hint={stats.services_total === 0 ? 'No services configured' : `${stats.services_total} in total`} to="/admin/services" />
+
+          <UpcomingAppointments today={today} items={stats.upcoming_list || []} total={stats.upcoming} className={WIDE} />
+          <QuickActions className="xl:row-span-2" />
+        </BentoGrid>
+      )}
     </div>
   );
 }

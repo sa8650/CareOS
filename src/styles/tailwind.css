@@ -1,0 +1,31 @@
+/*
+  Tailwind CSS (v4) — used ONLY by the shadcn/Magic UI components inside the admin panel.
+
+  Deliberate choices so the existing CareOS CSS keeps working untouched:
+  - Preflight (Tailwind's global reset) is NOT imported: it would restyle the public website.
+  - Utilities are emitted UNLAYERED so they win over global.css element rules (h3, a, td…) by
+    normal specificity. global.css is unlayered too, so layered utilities would always lose.
+  - Automatic content scanning is off; only admin + ui files are scanned, so no utility is ever
+    generated for a public-page class name.
+  - CareOS design tokens (global.css :root) are mapped to shadcn token names below.
+  - "dark:" is class-based (never active) — CareOS has no dark mode; an OS-level dark scheme
+    must not flip the cards dark.
+*/
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" source(none);
+
+@source "../admin";
+@source "../components/ui";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --color-muted: var(--color-bg-alt);
+  --color-muted-foreground: var(--color-text-light);
+  --color-line: var(--color-border);
+  --color-brand: var(--color-primary);
+  --color-brand-dark: var(--color-primary-dark);
+  --color-brand-light: var(--color-primary-light);
+}

@@ -57,7 +57,7 @@ export default function Testimonials() {
         <p style={{ textAlign: 'center', color: 'var(--color-text-light)', padding: '3rem' }}>No testimonials yet.</p>
       ) : (
         <div className="table-wrapper">
-          <table>
+          <table className="testimonials-table">
             <thead>
               <tr>
                 <th>Name</th>
@@ -70,15 +70,15 @@ export default function Testimonials() {
             <tbody>
               {testimonials.map(t => (
                 <tr key={t.id}>
-                  <td><strong>{t.name}</strong></td>
-                  <td style={{ maxWidth: 300 }}>{t.review.slice(0, 100)}{t.review.length > 100 ? '...' : ''}</td>
-                  <td>{'★'.repeat(t.rating)}{'☆'.repeat(5 - t.rating)}</td>
-                  <td>
+                  <td data-label="Name"><strong>{t.name}</strong></td>
+                  <td data-label="Review" className="testimonial-review">{t.review.slice(0, 100)}{t.review.length > 100 ? '...' : ''}</td>
+                  <td data-label="Rating" className="testimonial-rating">{'★'.repeat(t.rating)}{'☆'.repeat(5 - t.rating)}</td>
+                  <td data-label="Status">
                     <button className="btn btn-sm btn-secondary" onClick={() => togglePublish(t)}>
                       {t.is_published ? <><Eye size={14} /> Published</> : <><EyeOff size={14} /> Draft</>}
                     </button>
                   </td>
-                  <td>
+                  <td data-label="Actions">
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button className="btn btn-sm btn-secondary" onClick={() => openEdit(t)}><Edit size={14} /></button>
                       <button className="btn btn-sm btn-danger" onClick={() => handleDelete(t.id)}><Trash2 size={14} /></button>
@@ -133,6 +133,25 @@ export default function Testimonials() {
         .admin-page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
         .admin-page-title { font-size: 1.75rem; }
         .rating-input { display: flex; gap: 0.25rem; }
+        .testimonials-table { min-width: 620px; }
+        .testimonial-review { white-space: normal; min-width: 220px; max-width: 360px; }
+        .testimonial-rating { color: #f59e0b; letter-spacing: 0.05em; white-space: nowrap; }
+        @media (max-width: 640px) {
+          .admin-page-header { flex-direction: column; align-items: stretch; }
+          .admin-page-header .btn { width: 100%; justify-content: center; }
+          .rating-star { font-size: 1.85rem; padding: 0 0.15rem; }
+          /* Phone: one card per testimonial instead of a sideways-scrolling table */
+          .table-wrapper { border: none; border-radius: 0; overflow: visible; }
+          .testimonials-table { min-width: 0; }
+          .testimonials-table, .testimonials-table tbody, .testimonials-table tr, .testimonials-table td { display: block; width: 100%; }
+          .testimonials-table thead { display: none; }
+          .testimonials-table tr { background: white; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 0.85rem 0.9rem; margin-bottom: 0.75rem; box-shadow: var(--shadow-sm); }
+          .testimonials-table tr:hover td { background: transparent; }
+          .testimonials-table td { padding: 0.25rem 0; border: none; max-width: none; }
+          .testimonials-table td[data-label="Name"] { font-size: 1rem; }
+          .testimonial-review { font-size: 0.88rem; color: var(--color-text-light); line-height: 1.5; min-width: 0; }
+          .testimonials-table td[data-label="Status"], .testimonials-table td[data-label="Actions"] { display: inline-block; width: auto; padding-top: 0.6rem; margin-right: 0.5rem; }
+        }
         .rating-star { font-size: 1.5rem; color: var(--color-border); background: none; border: none; cursor: pointer; transition: color 0.15s; }
         .rating-star--active { color: #f59e0b; }
       `}</style>

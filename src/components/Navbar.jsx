@@ -59,34 +59,39 @@ export default function Navbar() {
       <style>{`
         .nav {
           position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-          background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
-          border-bottom: 1px solid transparent; transition: all 0.3s ease;
+          background: rgba(255,255,255,0.72); backdrop-filter: blur(14px) saturate(160%); -webkit-backdrop-filter: blur(14px) saturate(160%);
+          border-bottom: 1px solid rgba(255,255,255,0.5); transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
         }
-        .nav--scrolled { border-bottom-color: var(--color-border); box-shadow: var(--shadow-sm); }
+        .nav--scrolled { background: rgba(255,255,255,0.92); border-bottom-color: var(--color-border); box-shadow: 0 8px 24px -18px rgba(15,23,42,0.35); }
         .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 70px; }
         .nav-logo { display: flex; align-items: center; gap: 0.75rem; }
         .nav-logo-icon {
-          width: 40px; height: 40px; background: linear-gradient(135deg, var(--color-primary), var(--color-accent)); color: white;
-          border-radius: 10px; display: flex; align-items: center; justify-content: center;
-          font-size: 1.1rem; font-weight: 800; flex-shrink: 0;
+          width: 40px; height: 40px; background: var(--gradient-brand); color: white;
+          border-radius: 12px; display: flex; align-items: center; justify-content: center;
+          font-size: 1.1rem; font-weight: 800; flex-shrink: 0; box-shadow: 0 8px 16px -8px rgba(14,165,233,0.7);
         }
         .nav-logo-text { display: flex; flex-direction: column; line-height: 1.2; }
         .nav-logo-name { font-weight: 700; font-size: 1rem; color: var(--color-text); }
         .nav-logo-title { font-size: 0.7rem; color: var(--color-text-light); font-weight: 500; }
-        .nav-links { display: flex; align-items: center; gap: 2rem; }
-        .nav-link { font-weight: 500; font-size: 0.95rem; color: var(--color-text-light); transition: color 0.2s; }
-        .nav-link:hover, .nav-link--active { color: var(--color-primary); }
-        .nav-toggle { display: none; }
+        .nav-links { display: flex; align-items: center; gap: 0.35rem; }
+        .nav-link { position: relative; font-weight: 500; font-size: 0.93rem; color: var(--color-text-light); padding: 0.5rem 0.85rem; border-radius: var(--radius-full); transition: color 0.2s, background 0.2s; }
+        .nav-link:hover { color: var(--color-text); background: rgba(15,23,42,0.05); }
+        .nav-link--active { color: var(--color-primary-dark); background: var(--color-primary-light); font-weight: 600; }
+        .nav-cta { margin-left: 0.75rem; border-radius: var(--radius-full); box-shadow: 0 8px 18px -10px rgba(14,165,233,0.8); }
+        .nav-toggle { display: none; width: 42px; height: 42px; align-items: center; justify-content: center; border-radius: 12px; color: var(--color-text); }
+        .nav-toggle:hover { background: rgba(15,23,42,0.05); }
 
         @media (max-width: 768px) {
           .nav-toggle { display: flex; }
           .nav-links {
-            position: fixed; top: 70px; left: 0; right: 0; background: white;
-            flex-direction: column; padding: 2rem; gap: 1.5rem;
-            transform: translateY(-100%); opacity: 0; pointer-events: none;
-            transition: all 0.3s ease; border-bottom: 1px solid var(--color-border);
+            position: fixed; top: 70px; left: 0; right: 0; background: rgba(255,255,255,0.98); backdrop-filter: blur(14px);
+            flex-direction: column; align-items: stretch; padding: 1rem 1rem 1.25rem; gap: 0.25rem;
+            transform: translateY(-8px); opacity: 0; pointer-events: none;
+            transition: all 0.25s ease; border-bottom: 1px solid var(--color-border); box-shadow: 0 24px 40px -24px rgba(15,23,42,0.35);
           }
           .nav-links--open { transform: translateY(0); opacity: 1; pointer-events: auto; }
+          .nav-link { padding: 0.8rem 1rem; font-size: 1rem; border-radius: var(--radius-lg); }
+          .nav-cta { margin: 0.6rem 0 0; justify-content: center; padding: 0.85rem 1rem; font-size: 0.95rem; }
         }
       `}</style>
     </header>

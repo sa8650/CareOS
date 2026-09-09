@@ -4,8 +4,24 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Dr. Sarah Mitchell - Dermatologist & Skin Specialist. Book your appointment today." />
-    <title>Dr. Sarah Mitchell | Dermatologist</title>
+    <!--
+      SEO placeholders only. The server (functions/_middleware.js) replaces this title and the
+      robots tag with the page's resolved metadata on every HTML response; the React SeoManager
+      does the same on client-side navigation. Nothing doctor-specific lives here.
+      The default is "noindex" on purpose: a raw shell without SEO data must never be indexed.
+    -->
+    <title>Loading…</title>
+    <meta name="robots" content="noindex" />
+    <!-- Pre-rendered page content (injected server-side into #root) is readable before React mounts. -->
+    <style>
+      [data-prerender] { max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem; font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1e293b; }
+      [data-prerender] nav ul, [data-prerender] ul { padding-left: 1.25rem; }
+      [data-prerender] nav ul { display: flex; flex-wrap: wrap; gap: 1rem; list-style: none; padding: 0; }
+      [data-prerender] a { color: #0ea5e9; }
+      [data-prerender] img { max-width: 100%; height: auto; border-radius: 12px; }
+      [data-prerender] h1 { font-size: 2rem; margin: 0.5rem 0; }
+      [data-prerender] section { margin-bottom: 2rem; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

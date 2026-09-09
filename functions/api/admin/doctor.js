@@ -1,21 +1,20 @@
 import { parseBody, json } from '../_middleware.js';
+import { parseProfileRow, qualificationsList, specializationsList, statsList, DEFAULT_STATS } from '../_lib/profile.js';
+
+const EMPTY_PROFILE = {
+  name: '', title: '', bio: '', profile_image: '',
+  qualifications: [], specializations: [], experience: '',
+  clinic_name: '', phone: '', email: '', address: '', stats: DEFAULT_STATS,
+};
+
+const STATS_MISSING = 'Statistics were not saved: run migrations/003_profile_stats.sql in the D1 console first.';
+
+const str = (v) => (v == null ? '' : String(v));
 
 export async function onRequestGet(context) {
   const db = context.env.DB;
-  const doctor = await db.prepare('SELECT * FROM doctor_profile WHERE id = 1').first();
-  if (!doctor) {
-    // Return default empty profile
-    return json({
-      name: '', title: '', bio: '', profile_image: '',
-      qualifications: [], specializations: [], experience: '',
-      clinic_name: '', phone: '', email: '', address: '',
-    });
-  }
-  try { doctor.qualifications = JSON.parse(doctor.qualifications || '[]'); } catch { doctor.qualifications = []; }
-  try { doctor.specializations = JSON.parse(doctor.specializations || '[]'); } catch {
-    doctor.specializations = (doctor.specializations || '').split(',').map(s => s.trim()).filter(Boolean);
-  }
-  return json(doctor);
+  const row = await db.prepare('SELECT * FROM doctor_profile WHERE id = 1').first();
+  return json(parseProfileRow(row) || EMPTY_PROFILE);
 }
 
 export async function onRequestPut(context) {
@@ -23,31 +22,64 @@ export async function onRequestPut(context) {
   if (!body) return json({ error: 'Invalid request body' }, 400);
 
   const db = context.env.DB;
+  const existing = await db.prepare('SELECT * FROM doctor_profile WHERE id = 1').first();
 
-  const qualifications = typeof body.qualifications === 'string' ? body.qualifications : JSON.stringify(body.qualifications || []);
-  const specializations = typeof body.specializations === 'string' ? body.specializations : JSON.stringify(
-    typeof body.specializations === 'string' ? body.specializations.split(',').map(s => s.trim()) : (body.specializations || [])
+  // Merge with the stored row so fields the form does not send are preserved,
+  // and never bind `undefined` (D1 rejects it with D1_TYPE_ERROR).
+  const merged = { ...(existing || {}), ...body };
+
+  // Textarea "one per line" -> JSON array; comma list -> JSON array.
+  const qualifications = JSON.stringify(
+    qualificationsList(body.qualifications !== undefined ? body.qualifications : existing?.qualifications)
+  );
+  const specializations = JSON.stringify(
+    specializationsList(body.specializations !== undefined ? body.specializations : existing?.specializations)
   );
 
-  const existing = await db.prepare('SELECT id FROM doctor_profile WHERE id = 1').first();
+  const values = [
+    str(merged.name).trim() || 'Doctor',
+    str(merged.title),
+    str(merged.bio),
+    str(merged.profile_image),
+    qualifications,
+    specializations,
+    str(merged.experience),
+    str(merged.clinic_name),
+    str(merged.phone),
+    str(merged.email),
+    str(merged.address),
+  ];
 
-  if (existing) {
-    await db.prepare(
-      `UPDATE doctor_profile SET name=?, title=?, bio=?, profile_image=?, qualifications=?, specializations=?, experience=?, clinic_name=?, phone=?, email=?, address=?, updated_at=datetime('now') WHERE id=1`
-    ).bind(
-      body.name, body.title, body.bio, body.profile_image,
-      qualifications, specializations, body.experience,
-      body.clinic_name, body.phone, body.email, body.address
-    ).run();
-  } else {
-    await db.prepare(
-      `INSERT INTO doctor_profile (id, name, title, bio, profile_image, qualifications, specializations, experience, clinic_name, phone, email, address) VALUES (1,?,?,?,?,?,?,?,?,?,?,?)`
-    ).bind(
-      body.name, body.title, body.bio, body.profile_image,
-      qualifications, specializations, body.experience,
-      body.clinic_name, body.phone, body.email, body.address
-    ).run();
+  // Hero statistics: array of { value, label } -> JSON. Only touched when the form sends it.
+  const statsJson = body.stats !== undefined ? JSON.stringify(statsList(body.stats, { fallback: false })) : undefined;
+
+  const run = async (withStats) => {
+    if (existing) {
+      const sql = `UPDATE doctor_profile
+         SET name=?, title=?, bio=?, profile_image=?, qualifications=?, specializations=?, experience=?,
+             clinic_name=?, phone=?, email=?, address=?${withStats ? ', stats=?' : ''}, updated_at=datetime('now')
+         WHERE id=1`;
+      await db.prepare(sql).bind(...values, ...(withStats ? [statsJson] : [])).run();
+    } else {
+      const sql = `INSERT INTO doctor_profile (id, name, title, bio, profile_image, qualifications, specializations, experience, clinic_name, phone, email, address${withStats ? ', stats' : ''})
+         VALUES (1,?,?,?,?,?,?,?,?,?,?,?${withStats ? ',?' : ''})`;
+      await db.prepare(sql).bind(...values, ...(withStats ? [statsJson] : [])).run();
+    }
+  };
+
+  let warning = null;
+  try {
+    await run(statsJson !== undefined);
+  } catch (err) {
+    // Live DB without the `stats` column (migration 003 not run yet): save everything else.
+    if (statsJson !== undefined && /no (such )?column.*stats|has no column named stats/i.test(err?.message || '')) {
+      await run(false);
+      warning = STATS_MISSING;
+    } else {
+      throw err;
+    }
   }
 
-  return json({ success: true });
+  const saved = await db.prepare('SELECT * FROM doctor_profile WHERE id = 1').first();
+  return json({ success: true, doctor: parseProfileRow(saved), ...(warning ? { warning } : {}) });
 }

@@ -47,7 +47,7 @@ export default function Gallery() {
       <div className="admin-page-header">
         <h1 className="admin-page-title">Gallery</h1>
         <div className="gallery-upload">
-          <input type="text" className="form-input" placeholder="Caption (optional)" value={caption} onChange={e => setCaption(e.target.value)} style={{ width: 200 }} />
+          <input type="text" className="form-input gallery-caption-input" placeholder="Caption (optional)" value={caption} onChange={e => setCaption(e.target.value)} />
           <label className="btn btn-primary" style={{ cursor: 'pointer' }}>
             <Upload size={16} /> {uploading ? 'Uploading...' : 'Upload Image'}
             <input type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} disabled={uploading} />
@@ -83,8 +83,18 @@ export default function Gallery() {
       <style>{`
         .admin-page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
         .admin-page-title { font-size: 1.75rem; }
-        .gallery-upload { display: flex; align-items: center; gap: 0.75rem; }
-        .gallery-admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+        .gallery-upload { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+        .gallery-caption-input { width: 200px; }
+        .gallery-admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 1rem; }
+        @media (max-width: 640px) {
+          .admin-page-header { flex-direction: column; align-items: stretch; }
+          .gallery-upload { width: 100%; }
+          .gallery-caption-input { width: 100%; flex: 1 1 100%; }
+          .gallery-upload .btn { width: 100%; justify-content: center; }
+          .gallery-admin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+          .gallery-admin-item img { height: 130px; }
+          .gallery-admin-actions { padding: 0.5rem; }
+        }
         .gallery-admin-item { border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--color-border); background: white; }
         .gallery-admin-item img { width: 100%; height: 180px; object-fit: cover; }
         .gallery-admin-actions { padding: 0.75rem; }

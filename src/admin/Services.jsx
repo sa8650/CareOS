@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, EyeOff, Save } from 'lucide-react';
 import { adminGet, adminPost, adminPut, adminDelete, uploadFile } from '../api/api';
 import { slugify } from '../utils/helpers';
+import { invalidateSeoServices } from '../seo/SeoManager';
 
 export default function Services() {
   const [services, setServices] = useState([]);
@@ -11,11 +13,18 @@ export default function Services() {
   const [imageFile, setImageFile] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const load = () => adminGet('/services').then(setServices).catch(() => {}).finally(() => setLoading(false));
+  const load = () => { invalidateSeoServices(); return adminGet('/services').then(setServices).catch(() => {}).finally(() => setLoading(false)); };
   useEffect(() => { load(); }, []);
 
   const openNew = () => { setForm({ name: '', slug: '', description: '', is_active: 1 }); setModal('new'); setImageFile(null); };
   const openEdit = (s) => { setForm({ ...s }); setModal('edit'); setImageFile(null); };
+
+  // /admin/services?new=1 (dashboard quick action) opens the existing Add modal once
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get('new') === '1') { openNew(); setParams({}, { replace: true }); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const update = (k, v) => {
     setForm(f => {

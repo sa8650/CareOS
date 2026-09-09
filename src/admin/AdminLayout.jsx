@@ -1,16 +1,21 @@
-import { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
-import { LayoutDashboard, Calendar, Stethoscope, UserCircle, Image, MessageSquare, Settings, LogOut, Menu, X, Clock, Building2 } from 'lucide-react';
+import { useState, useEffect, Suspense } from 'react';
+import { Outlet, NavLink, useNavigate, Link, useLocation } from 'react-router-dom';
+import { LayoutDashboard, Calendar, Stethoscope, UserCircle, Image, MessageSquare, Settings, LogOut, Menu, X, Clock, Building2, ShieldCheck, LayoutTemplate, Search } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
+import '../styles/tailwind.css'; // Tailwind utilities for the shadcn/Magic UI components (admin only)
 
 export default function AdminLayout() {
   const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate('/admin/login');
   }, [loading, user, navigate]);
+
+  // Close the phone drawer whenever the route changes
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
   if (loading) return <div className="loading-page"><div className="spinner" /></div>;
   if (!user) return null;
@@ -25,11 +30,14 @@ export default function AdminLayout() {
     { to: '/admin/appointments', icon: <Calendar size={18} />, label: 'Appointments' },
     { to: '/admin/schedule', icon: <Clock size={18} />, label: 'Schedule' },
     { to: '/admin/services', icon: <Stethoscope size={18} />, label: 'Services' },
+    { to: '/admin/sections', icon: <LayoutTemplate size={18} />, label: 'Home Sections' },
     { to: '/admin/profile', icon: <UserCircle size={18} />, label: 'Profile' },
     { to: '/admin/chambers', icon: <Building2 size={18} />, label: 'Chambers' },
     { to: '/admin/gallery', icon: <Image size={18} />, label: 'Gallery' },
     { to: '/admin/testimonials', icon: <MessageSquare size={18} />, label: 'Testimonials' },
     { to: '/admin/settings', icon: <Settings size={18} />, label: 'Settings' },
+    { to: '/admin/privacy', icon: <ShieldCheck size={18} />, label: 'Privacy Policy' },
+    { to: '/admin/seo', icon: <Search size={18} />, label: 'SEO Settings' },
   ];
 
   return (
@@ -40,7 +48,7 @@ export default function AdminLayout() {
             <span className="admin-logo-icon">Dr</span>
             <span>Admin Panel</span>
           </Link>
-          <button className="admin-sidebar-close" onClick={() => setSidebarOpen(false)}><X size={20} /></button>
+          <button className="admin-sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close menu"><X size={20} /></button>
         </div>
         <nav className="admin-nav">
           {navItems.map(item => (
@@ -60,16 +68,20 @@ export default function AdminLayout() {
         </div>
       </aside>
 
+      <div className={`admin-backdrop ${sidebarOpen ? 'admin-backdrop--show' : ''}`} onClick={() => setSidebarOpen(false)} />
       <main className="admin-main">
         <header className="admin-topbar">
-          <button className="admin-menu-btn" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button>
+          <button className="admin-menu-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={20} /></button>
           <div className="admin-topbar-right">
             <span className="admin-user-name">{user.name}</span>
             <div className="admin-avatar">{user.name?.[0] || 'A'}</div>
           </div>
         </header>
         <div className="admin-content">
-          <Outlet />
+          {/* Admin pages are lazy-loaded; keep the shell visible while a chunk downloads */}
+          <Suspense fallback={<div className="loading-page"><div className="spinner" /></div>}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
 
@@ -102,7 +114,10 @@ export default function AdminLayout() {
         }
         .admin-logout:hover { background: #1e293b; color: white; }
 
-        .admin-main { flex: 1; margin-left: 260px; background: var(--color-bg-alt); }
+        /* min-width:0 is the key mobile fix: without it a wide table/grid stretches the whole
+           layout instead of scrolling inside .table-wrapper. */
+        .admin-main { flex: 1; min-width: 0; margin-left: 260px; background: var(--color-bg-alt); }
+        .admin-backdrop { display: none; }
         .admin-topbar {
           height: 64px; background: white; border-bottom: 1px solid var(--color-border);
           display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem;
@@ -117,14 +132,26 @@ export default function AdminLayout() {
           font-weight: 700; font-size: 0.85rem;
         }
         .admin-content { padding: 2rem; }
+        .admin-page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
 
         @media (max-width: 768px) {
           .admin-sidebar { transform: translateX(-100%); }
-          .admin-sidebar--open { transform: translateX(0); }
+          .admin-sidebar--open { transform: translateX(0); box-shadow: var(--shadow-xl); }
           .admin-sidebar-close { display: flex; }
-          .admin-main { margin-left: 0; }
+          .admin-backdrop--show { display: block; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 49; }
+          .admin-main { margin-left: 0; max-width: 100vw; }
           .admin-menu-btn { display: flex; }
-          .admin-content { padding: 1rem; }
+          .admin-topbar { height: 56px; padding: 0 1rem; }
+          .admin-content { padding: 1rem 0.85rem 4rem; }
+          .admin-content .admin-page-title { font-size: 1.4rem; margin-bottom: 1rem; }
+          /* Generic mobile helpers for every admin page */
+          .admin-content .table-wrapper { -webkit-overflow-scrolling: touch; }
+          .admin-content th, .admin-content td { padding: 0.6rem 0.75rem; }
+          .admin-content .card-body { padding: 1rem; }
+          .admin-content .modal { width: 100%; max-height: 92vh; border-radius: var(--radius-lg); }
+          .admin-content .modal-header, .admin-content .modal-body { padding-left: 1rem; padding-right: 1rem; }
+          .admin-content .modal-footer { padding: 0 1rem 1rem; flex-wrap: wrap; }
+          .admin-content .modal-footer .btn { flex: 1 1 auto; justify-content: center; }
         }
       `}</style>
     </div>

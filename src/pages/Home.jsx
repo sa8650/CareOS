@@ -1,29 +1,63 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Award, Shield, Star, ChevronRight, Calendar, Building2, MapPin, Phone, Clock } from 'lucide-react';
-import { fetchDoctor, fetchServices, fetchTestimonials, fetchSettings } from '../api/api';
+import { fetchDoctor, fetchServices, fetchTestimonials, fetchChambers, fetchSections } from '../api/api';
+import Marquee from '../components/Marquee';
+import FeaturedSection from '../components/FeaturedSection';
+import { formatTimeRange, formatVisitingDays, DAYS_SHORT, imageUrl, asLines, asList } from '../utils/helpers';
 
 export default function Home() {
   const [doctor, setDoctor] = useState(null);
   const [services, setServices] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
-  const [settings, setSettings] = useState({});
+
+  // Split reviews into 1 or 2 marquee rows; each row is repeated until it is long enough to
+  // loop seamlessly on wide screens.
+  const testimonialRows = (() => {
+    if (!testimonials.length) return [];
+    const rows = testimonials.length >= 4
+      ? [testimonials.filter((_, i) => i % 2 === 0), testimonials.filter((_, i) => i % 2 === 1)]
+      : [testimonials];
+    const MIN = 6;
+    return rows.map(r => {
+      const out = [];
+      while (out.length < MIN) out.push(...r);
+      return out.map((t, i) => ({ ...t, id: `${t.id}-${i}` }));
+    });
+  })();
+  const [chambers, setChambers] = useState([]);
+  const [sections, setSections] = useState([]);
 
   useEffect(() => {
     fetchDoctor().then(setDoctor).catch(() => {});
     fetchServices().then(setServices).catch(() => {});
     fetchTestimonials().then(setTestimonials).catch(() => {});
-    fetchSettings().then(setSettings).catch(() => {});
+    fetchChambers().then(setChambers).catch(() => {});
+    fetchSections().then(d => setSections(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 
   const serviceIcons = ['🧴', '💉', '✨', '🔬', '💊', '🩺', '🧬', '💡'];
-  const chambers = settings.chambers ? JSON.parse(settings.chambers || '[]') : [];
 
-  const getImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    return `/api/image?key=${encodeURIComponent(url)}`;
-  };
+  // Hero statistics come from Admin → Profile → Hero Statistics.
+  // Before the profile loads (or with an older API without `stats`) show the classic defaults.
+  const DEFAULT_STATS = [{ value: '10K+', label: 'Patients' }, { value: '15+', label: 'Years' }, { value: '4.9', label: 'Rating' }];
+  const heroStats = (Array.isArray(doctor?.stats) ? doctor.stats : DEFAULT_STATS)
+    .filter(st => (st?.value || '').toString().trim() || (st?.label || '').toString().trim())
+    .slice(0, 4);
+
+  const marqueeItems = (() => {
+    const quals = asLines(doctor?.qualifications);
+    const specs = asList(doctor?.specializations);
+    const items = [
+      doctor?.name && doctor?.title ? `${doctor.name} — ${doctor.title}` : (doctor?.name || null),
+      doctor?.experience || null,
+      ...quals,
+      ...specs.map(sp => `Specialist in ${sp}`),
+      chambers.length ? `${chambers.length} chamber${chambers.length > 1 ? 's' : ''} · book online in 1 minute` : null,
+      'Serial-number appointments · no waiting in line',
+    ].filter(Boolean);
+    return items.length ? items : ['Compassionate, evidence-based dermatology care'];
+  })();
 
   const getDescriptionItems = (desc) => {
     if (!desc) return [];
@@ -60,28 +94,25 @@ export default function Home() {
                 About Me
               </Link>
             </div>
-            <div className="hero-stats animate-fade-up delay-3">
-              <div className="hero-stat">
-                <span className="hero-stat-num">10K+</span>
-                <span className="hero-stat-label">Patients</span>
+            {heroStats.length > 0 && (
+              <div className="hero-stats animate-fade-up delay-3">
+                {heroStats.map((st, i) => (
+                  <div key={i} style={{ display: 'contents' }}>
+                    <div className="hero-stat">
+                      <span className="hero-stat-num">{st.value}</span>
+                      <span className="hero-stat-label">{st.label}</span>
+                    </div>
+                    {i < heroStats.length - 1 && <div className="hero-stat-divider"></div>}
+                  </div>
+                ))}
               </div>
-              <div className="hero-stat-divider"></div>
-              <div className="hero-stat">
-                <span className="hero-stat-num">15+</span>
-                <span className="hero-stat-label">Years</span>
-              </div>
-              <div className="hero-stat-divider"></div>
-              <div className="hero-stat">
-                <span className="hero-stat-num">4.9</span>
-                <span className="hero-stat-label">Rating</span>
-              </div>
-            </div>
+            )}
           </div>
           <div className="hero-image">
             <div className="hero-img-wrapper">
               <div className="hero-img-bg"></div>
               {doctor?.profile_image ? (
-                <img src={getImageUrl(doctor.profile_image)} alt={doctor.name} className="hero-doctor-photo" />
+                <img src={imageUrl(doctor.profile_image)} alt={doctor.name} className="hero-doctor-photo" />
               ) : (
                 <div className="hero-img-placeholder">
                   <div className="hero-img-initials">{doctor?.name?.[0] || 'D'}</div>
@@ -100,26 +131,20 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Scrolling "about me" strip */}
+      <Marquee speed={55} items={marqueeItems} />
+
       {/* About Preview */}
-      <section className="section">
+      <section className="section about-preview-section">
         <div className="container about-preview">
-          <div className="about-preview-img">
-            {doctor?.profile_image ? (
-              <img src={getImageUrl(doctor.profile_image)} alt={doctor.name} className="about-doctor-photo" />
-            ) : (
-              <div className="about-img-placeholder">
-                <div className="about-img-inner" />
-              </div>
-            )}
-          </div>
           <div className="about-preview-content">
             <span className="section-tag">About Me</span>
             <h2 className="section-title">{doctor?.name || 'Doctor'}</h2>
             <p className="about-title-text">{doctor?.title || 'Specialist'}</p>
             <p>{doctor?.bio || 'Experienced doctor providing quality care.'}</p>
-            {doctor?.qualifications && doctor.qualifications.length > 0 && (
+            {asLines(doctor?.qualifications).length > 0 && (
               <div className="about-highlights">
-                {doctor.qualifications.slice(0, 3).map((q, i) => (
+                {asLines(doctor.qualifications).slice(0, 4).map((q, i) => (
                   <div key={i} className="about-highlight">
                     <Award size={18} />
                     <span>{q}</span>
@@ -134,6 +159,11 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Admin-managed featured sections (Admin → Home Sections) */}
+      {sections.map((sec, i) => (
+        <FeaturedSection key={sec.id} section={sec} index={i} />
+      ))}
+
       {/* Conditions We Treat */}
       <section className="section section-alt">
         <div className="container">
@@ -143,29 +173,40 @@ export default function Home() {
             <p className="section-subtitle">Expert treatment for all skin, hair, and related conditions.</p>
           </div>
           <div className="conditions-grid">
-            {services.filter(s => s.is_active).map((s, i) => (
-              <div key={s.id} className="condition-card">
-                <div className="condition-icon" style={{ background: `hsl(${i * 45}, 70%, 95%)` }}>
-                  {serviceIcons[i % serviceIcons.length]}
-                </div>
-                <h3>{s.name}</h3>
-                <ul className="condition-list">
-                  {getDescriptionItems(s.description).slice(0, 6).map((item, idx) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
-                <Link to={`/services/${s.slug}`} className="condition-link">
-                  Learn More <ArrowRight size={14} />
+            {services.filter(s => s.is_active).map((s, i) => {
+              const hue = (i * 47) % 360;
+              const items = getDescriptionItems(s.description);
+              return (
+                <Link key={s.id} to={`/services/${s.slug}`} className="condition-card" style={{ '--hue': hue }}>
+                  <div className="condition-card-glow" />
+                  <div className="condition-card-top">
+                    <div className="condition-icon">
+                      <span>{serviceIcons[i % serviceIcons.length]}</span>
+                    </div>
+                    <span className="condition-num">{String(i + 1).padStart(2, '0')}</span>
+                  </div>
+                  <h3>{s.name}</h3>
+                  {items.length > 1 ? (
+                    <ul className="condition-list">
+                      {items.slice(0, 5).map((item, idx) => <li key={idx}>{item}</li>)}
+                    </ul>
+                  ) : (
+                    <p className="condition-desc">{(s.description || '').slice(0, 140)}{(s.description || '').length > 140 ? '…' : ''}</p>
+                  )}
+                  <div className="condition-foot">
+                    <span className="condition-link">Learn more <ArrowRight size={15} /></span>
+                    {s.duration_minutes ? <span className="condition-meta">{s.duration_minutes} min</span> : null}
+                  </div>
                 </Link>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* Chamber Details */}
       {chambers.length > 0 && (
-        <section className="section">
+        <section className="section section--dark chambers-section">
           <div className="container">
             <div className="section-header">
               <span className="section-tag"><Building2 size={16} /> Chambers</span>
@@ -173,10 +214,10 @@ export default function Home() {
               <p className="section-subtitle">Visit me at any of my chambers</p>
             </div>
             <div className="chambers-grid">
-              {chambers.map((c, i) => (
-                <div key={i} className="chamber-card card">
+              {chambers.map((c) => (
+                <div key={c.id} className="chamber-card">
                   <div className="card-body">
-                    <h3>{c.name}</h3>
+                    <h3><span className="chamber-card-icon"><Building2 size={16} /></span>{c.name}</h3>
                     <div className="chamber-info">
                       {c.address && (
                         <div className="chamber-item">
@@ -190,14 +231,22 @@ export default function Home() {
                           <span>{c.phone}</span>
                         </div>
                       )}
-                      {c.hours && (
-                        <div className="chamber-item">
-                          <Clock size={16} />
-                          <span>{c.hours}</span>
-                        </div>
-                      )}
+                      <div className="chamber-item">
+                        <Clock size={16} />
+                        <span>{formatTimeRange(c.start_time, c.end_time)}</span>
+                      </div>
                     </div>
-                    {c.days && <div className="chamber-days">{c.days}</div>}
+                    <div className="chamber-days">
+                      <div className="chamber-days-pills">
+                        {DAYS_SHORT.map((d, i) => (
+                          <span key={d} className={c.visiting_days.includes(i) ? 'on' : ''}>{d}</span>
+                        ))}
+                      </div>
+                      <span className="chamber-days-text">{formatVisitingDays(c.visiting_days)}</span>
+                    </div>
+                    <Link to="/appointment" className="btn btn-primary btn-sm chamber-card-btn">
+                      <Calendar size={14} /> Book here
+                    </Link>
                   </div>
                 </div>
               ))}
@@ -214,34 +263,50 @@ export default function Home() {
               <span className="section-tag">Testimonials</span>
               <h2 className="section-title">What My Patients Say</h2>
             </div>
-            <div className="grid-3">
-              {testimonials.slice(0, 3).map(t => (
-                <div key={t.id} className="testimonial-card card">
-                  <div className="card-body">
-                    <div className="testimonial-stars">
-                      {'★'.repeat(t.rating)}{'☆'.repeat(5 - t.rating)}
-                    </div>
-                    <p className="testimonial-text">"{t.review}"</p>
-                    <div className="testimonial-author">
-                      <div className="testimonial-avatar">{t.name[0]}</div>
-                      <span>{t.name}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
+          {/* Continuous left/right scroller: row 1 drifts left, row 2 (when there are 4+ reviews)
+              drifts right. Pauses on hover / focus; static wrap under prefers-reduced-motion. */}
+          {testimonialRows.map((row, ri) => (
+            <div key={ri} className={`testimonial-marquee ${ri % 2 ? 'testimonial-marquee--reverse' : ''}`}
+              style={{ '--marquee-duration': `${Math.max(28, row.length * 9)}s` }}>
+              <div className="testimonial-track">
+                {[0, 1].map(dup => (
+                  <div className="testimonial-group" key={dup} aria-hidden={dup === 1}>
+                    {row.map(t => (
+                      <div key={`${dup}-${t.id}`} className="testimonial-card">
+                        <div className="card-body">
+                          <div className="testimonial-quote">“</div>
+                          <div className="testimonial-stars" aria-label={`${t.rating} out of 5 stars`}>
+                            {'★'.repeat(t.rating)}{'☆'.repeat(5 - t.rating)}
+                          </div>
+                          <p className="testimonial-text">"{t.review}"</p>
+                          <div className="testimonial-author">
+                            <div className="testimonial-avatar">{t.name[0]}</div>
+                            <span>{t.name}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </section>
       )}
 
       {/* CTA */}
       <section className="cta-section">
-        <div className="container cta-inner">
-          <h2>Ready to Get Expert Treatment?</h2>
-          <p>Book your consultation today for accurate diagnosis and effective treatment.</p>
-          <Link to="/appointment" className="btn btn-primary btn-lg cta-btn">
-            <Calendar size={18} /> Book Appointment
-          </Link>
+        <div className="container">
+          <div className="cta-inner">
+            <div className="cta-text">
+              <h2>Ready to Get Expert Treatment?</h2>
+              <p>Book your consultation today for accurate diagnosis and effective treatment.</p>
+            </div>
+            <Link to="/appointment" className="btn cta-btn">
+              <Calendar size={18} /> Book Appointment
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -292,54 +357,150 @@ export default function Home() {
           .hero-stats { margin: 0 auto; }
           .hero-image { order: -1; max-width: 280px; margin: 0 auto; }
           .hero-float-card { display: none; }
+          .hero-stats { gap: 1rem; padding: 0.9rem 1rem; }
+          .hero-stat-num { font-size: 1.25rem; }
+          .cta-section { padding: 2rem 0; }
+          .cta-inner { flex-direction: column; text-align: center; gap: 1rem; padding: 1.5rem 1.25rem; border-radius: 20px; }
+          .cta-inner h2 { font-size: 1.3rem; }
+          .cta-inner p { font-size: 0.9rem; }
+          .cta-btn { width: 100%; justify-content: center; max-width: 320px; }
         }
 
-        .about-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
-        .about-preview-img { border-radius: 2rem; overflow: hidden; }
-        .about-doctor-photo { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 2rem; }
-        .about-img-placeholder { width: 100%; aspect-ratio: 3/4; background: linear-gradient(135deg, #dbeafe, #e0f2fe); border-radius: 2rem; display: flex; align-items: center; justify-content: center; }
-        .about-img-inner { width: 80%; height: 80%; border-radius: 1.5rem; background: linear-gradient(135deg, var(--color-primary-light), #bfdbfe); }
-        .section-tag { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--color-primary); margin-bottom: 0.75rem; }
+        .about-preview-section { padding-top: 4.5rem; }
+        .about-preview { display: flex; justify-content: center; }
+        .about-preview-content { max-width: 780px; text-align: center; }
+        .about-preview-content .about-highlights { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem; }
+        .about-preview-content .about-highlight { margin-bottom: 0; }
         .about-title-text { color: var(--color-primary); font-weight: 600; margin-bottom: 1rem; }
-        .about-preview-content p { color: var(--color-text-light); margin-bottom: 1rem; font-size: 1.05rem; }
-        .about-highlights { margin: 1.5rem 0; }
-        .about-highlight { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-weight: 500; }
+        .about-preview-content > p { color: var(--color-text-light); margin-bottom: 1rem; font-size: 1.05rem; line-height: 1.75; }
+        .about-highlights { margin: 1.5rem 0 1.75rem; }
+        .about-highlight {
+          display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.9rem; color: var(--color-text);
+          padding: 0.55rem 1rem; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-full); box-shadow: var(--shadow-sm);
+        }
         .about-highlight svg { color: var(--color-primary); }
-        .section-alt { background: var(--color-bg-alt); }
-        .section-header { text-align: center; margin-bottom: 3rem; }
-        @media (max-width: 768px) { .about-preview { grid-template-columns: 1fr; gap: 2rem; } }
+        @media (max-width: 768px) { .about-preview-section { padding-top: 3rem; } .about-preview-content .about-highlights { gap: 0.5rem; } }
 
-        .conditions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
-        .condition-card { background: rgba(255,255,255,0.5); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.6); border-radius: 18px; padding: 1.5rem; transition: all 0.3s; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
-        .condition-card:hover { transform: translateY(-4px); background: rgba(255,255,255,0.7); }
-        .condition-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1rem; }
-        .condition-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem; }
-        .condition-list { list-style: none; margin-bottom: 1rem; }
-        .condition-list li { font-size: 0.85rem; color: var(--color-text); padding: 0.375rem 0; border-bottom: 1px solid rgba(0,0,0,0.04); display: flex; align-items: center; gap: 0.5rem; }
-        .condition-list li:last-child { border-bottom: none; }
-        .condition-list li::before { content: ''; width: 5px; height: 5px; background: var(--color-primary); border-radius: 50%; flex-shrink: 0; opacity: 0.5; }
-        .condition-link { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; font-weight: 600; color: var(--color-primary); }
+        .conditions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+        .condition-card {
+          --accent: hsl(var(--hue), 80%, 55%);
+          --accent-soft: hsl(var(--hue), 90%, 96%);
+          position: relative; display: flex; flex-direction: column; overflow: hidden;
+          background: #ffffff;
+          border: 1px solid rgba(15, 23, 42, 0.07); border-radius: 22px; padding: 1.6rem 1.6rem 1.35rem;
+          box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 12px 32px -18px rgba(15,23,42,0.18);
+          transition: transform 0.35s cubic-bezier(.2,.8,.2,1), box-shadow 0.35s, border-color 0.35s;
+          color: inherit; isolation: isolate;
+        }
+        .condition-card::before {
+          content: ''; position: absolute; inset: 0 0 auto 0; height: 4px;
+          background: linear-gradient(90deg, var(--accent), var(--color-primary));
+          opacity: 0; transition: opacity 0.35s;
+        }
+        .condition-card-glow {
+          position: absolute; width: 220px; height: 220px; right: -80px; top: -80px; border-radius: 50%;
+          background: radial-gradient(closest-side, var(--accent-soft), transparent);
+          opacity: 0.9; z-index: -1; transition: transform 0.5s ease;
+        }
+        .condition-card:hover { transform: translateY(-6px); border-color: rgba(14,165,233,0.25); box-shadow: 0 2px 4px rgba(15,23,42,0.04), 0 28px 48px -22px rgba(14,165,233,0.35); }
+        .condition-card:hover::before { opacity: 1; }
+        .condition-card:hover .condition-card-glow { transform: scale(1.35); }
+        .condition-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+        .condition-icon {
+          width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem;
+          background: var(--accent-soft); border: 1px solid hsla(var(--hue), 70%, 60%, 0.25);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 6px 14px -8px hsla(var(--hue), 80%, 40%, 0.45);
+          transition: transform 0.35s;
+        }
+        .condition-card:hover .condition-icon { transform: rotate(-6deg) scale(1.06); }
+        .condition-num { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.12em; color: #cbd5e1; }
+        .condition-card h3 { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 0.75rem; color: #0f172a; }
+        .condition-desc { font-size: 0.9rem; color: var(--color-text-light); line-height: 1.6; margin-bottom: 1rem; }
+        .condition-list { list-style: none; margin: 0 0 1rem; display: grid; gap: 0.35rem; }
+        .condition-list li { font-size: 0.88rem; color: #334155; display: flex; align-items: flex-start; gap: 0.55rem; line-height: 1.45; }
+        .condition-list li::before {
+          content: ''; flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; border-radius: 50%;
+          background: var(--accent-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230ea5e9' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/9px no-repeat;
+        }
+        .condition-foot { margin-top: auto; padding-top: 0.9rem; border-top: 1px dashed rgba(15,23,42,0.1); display: flex; align-items: center; justify-content: space-between; }
+        .condition-link { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.88rem; font-weight: 700; color: var(--color-primary); transition: gap 0.25s; }
+        .condition-card:hover .condition-link { gap: 0.6rem; }
+        .condition-meta { font-size: 0.75rem; font-weight: 600; color: var(--color-text-light); background: var(--color-bg-alt); border: 1px solid var(--color-border); border-radius: 999px; padding: 0.15rem 0.6rem; }
         @media (max-width: 1024px) { .conditions-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 768px) { .conditions-grid { grid-template-columns: 1fr; } }
 
-        .chambers-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; }
-        .chamber-card h3 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--color-primary); }
-        .chamber-info { display: flex; flex-direction: column; gap: 0.75rem; }
-        .chamber-item { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.9rem; color: var(--color-text-light); }
-        .chamber-item svg { color: var(--color-primary); flex-shrink: 0; margin-top: 0.125rem; }
-        .chamber-days { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border); font-size: 0.85rem; color: var(--color-text-light); }
+        /* Chambers — the one dark band on the page; glass cards on navy */
+        .chambers-section { overflow: hidden; }
+        .chambers-section .container { position: relative; z-index: 1; }
+        .chambers-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 1.25rem; }
+        .chamber-card {
+          display: flex; flex-direction: column;
+          background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px;
+          backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+          box-shadow: 0 24px 48px -28px rgba(0,0,0,0.6);
+          transition: transform 0.3s, border-color 0.3s, background 0.3s;
+        }
+        .chamber-card:hover { transform: translateY(-4px); border-color: rgba(125,211,252,0.45); background: rgba(255,255,255,0.09); }
+        .chamber-card .card-body { display: flex; flex-direction: column; flex: 1; padding: 1.5rem; }
+        .chamber-card h3 { display: flex; align-items: center; gap: 0.6rem; font-size: 1.1rem; margin-bottom: 1rem; color: #fff; }
+        .chamber-card-icon { width: 32px; height: 32px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: rgba(14,165,233,0.25); color: #7dd3fc; flex-shrink: 0; }
+        .chamber-info { display: flex; flex-direction: column; gap: 0.7rem; }
+        .chamber-item { display: flex; align-items: flex-start; gap: 0.55rem; font-size: 0.9rem; color: #cbd5e1; line-height: 1.5; }
+        .chamber-item svg { color: #7dd3fc; flex-shrink: 0; margin-top: 0.2rem; }
+        .chamber-days { margin-top: 1.1rem; padding-top: 1.1rem; border-top: 1px solid rgba(255,255,255,0.12); font-size: 0.85rem; }
+        .chamber-days-pills { display: flex; gap: 0.3rem; margin-bottom: 0.5rem; }
+        .chamber-days-pills span { flex: 1; text-align: center; font-size: 0.65rem; font-weight: 700; padding: 0.32rem 0; border-radius: 6px; background: rgba(255,255,255,0.07); color: #64748b; text-transform: uppercase; }
+        .chamber-days-pills span.on { background: rgba(16,185,129,0.22); color: #6ee7b7; }
+        .chamber-days-text { font-weight: 600; color: #e2e8f0; }
+        .chamber-card-btn { margin-top: auto; align-self: flex-start; margin-top: 1.25rem; }
 
-        .testimonial-card { text-align: center; }
-        .testimonial-stars { color: #f59e0b; font-size: 1.25rem; margin-bottom: 1rem; }
-        .testimonial-text { color: var(--color-text-light); font-style: italic; margin-bottom: 1.25rem; }
-        .testimonial-author { display: flex; align-items: center; gap: 0.75rem; justify-content: center; }
-        .testimonial-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+        /* Testimonials — soft band, white cards, continuous left/right scroll */
+        .testimonial-marquee {
+          position: relative; overflow: hidden; width: 100%; padding: 0.75rem 0;
+          -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+                  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+        }
+        .testimonial-track { display: flex; width: max-content; animation: testimonial-scroll var(--marquee-duration, 40s) linear infinite; }
+        .testimonial-marquee--reverse .testimonial-track { animation-direction: reverse; }
+        .testimonial-marquee:hover .testimonial-track,
+        .testimonial-marquee:focus-within .testimonial-track { animation-play-state: paused; }
+        .testimonial-group { display: flex; gap: 1.25rem; padding-right: 1.25rem; }
+        @keyframes testimonial-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        @media (prefers-reduced-motion: reduce) {
+          .testimonial-marquee { mask-image: none; -webkit-mask-image: none; }
+          .testimonial-track { animation: none; width: auto; flex-wrap: wrap; justify-content: center; }
+          .testimonial-group[aria-hidden="true"] { display: none; }
+          .testimonial-group { flex-wrap: wrap; justify-content: center; padding-right: 0; }
+        }
+        .testimonial-card {
+          position: relative; text-align: center; background: #fff; border: 1px solid var(--color-border); border-radius: 20px;
+          box-shadow: var(--shadow-card); transition: transform 0.3s, box-shadow 0.3s;
+          width: min(360px, 82vw); flex-shrink: 0;
+        }
+        .testimonial-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+        .testimonial-card .card-body { padding: 2rem 1.6rem 1.6rem; }
+        .testimonial-quote { position: absolute; top: 0.4rem; left: 1.1rem; font-size: 4.5rem; line-height: 1; font-family: Georgia, serif; color: var(--color-primary); opacity: 0.16; pointer-events: none; }
+        .testimonial-stars { color: #f59e0b; font-size: 1.1rem; letter-spacing: 0.1em; margin-bottom: 0.9rem; }
+        .testimonial-text { color: #334155; font-size: 0.98rem; line-height: 1.7; margin-bottom: 1.4rem; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+        .testimonial-author { display: flex; align-items: center; gap: 0.7rem; justify-content: center; font-weight: 600; font-size: 0.92rem; }
+        .testimonial-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--gradient-brand); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; box-shadow: 0 6px 14px -6px rgba(14,165,233,0.7); }
 
-        .cta-section { background: linear-gradient(135deg, var(--color-primary), var(--color-accent)); padding: 5rem 0; }
-        .cta-inner { text-align: center; color: white; }
-        .cta-inner h2 { font-size: 2.5rem; margin-bottom: 1rem; }
-        .cta-inner p { font-size: 1.15rem; opacity: 0.9; margin-bottom: 2rem; }
-        .cta-btn { background: white; color: var(--color-primary); }
+        /* CTA — hero-family sky background with a brand-gradient panel */
+        .cta-section { padding: 3rem 0; background: var(--gradient-hero); border-top: 1px solid rgba(14,165,233,0.12); }
+        .cta-inner {
+          position: relative; overflow: hidden;
+          display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; color: white;
+          padding: 1.75rem 2.25rem; border-radius: 24px;
+          background: linear-gradient(120deg, var(--color-primary-dark) 0%, var(--color-primary) 55%, var(--color-accent) 100%);
+          box-shadow: 0 24px 48px -24px rgba(2,132,199,0.6);
+        }
+        .cta-inner::before { content: ''; position: absolute; width: 260px; height: 260px; border-radius: 50%; right: -70px; top: -120px; background: rgba(255,255,255,0.12); pointer-events: none; }
+        .cta-inner::after { content: ''; position: absolute; width: 180px; height: 180px; border-radius: 50%; left: 30%; bottom: -120px; background: rgba(255,255,255,0.08); pointer-events: none; }
+        .cta-text { position: relative; z-index: 1; }
+        .cta-inner h2 { font-size: 1.5rem; margin-bottom: 0.25rem; line-height: 1.25; }
+        .cta-inner p { font-size: 0.95rem; opacity: 0.92; margin: 0; }
+        .cta-btn { position: relative; z-index: 1; background: white; color: var(--color-primary-dark); flex-shrink: 0; white-space: nowrap; border-radius: 999px; padding: 0.85rem 1.6rem; box-shadow: 0 10px 24px -12px rgba(0,0,0,0.45); }
+        .cta-btn:hover { background: #f0f9ff; transform: translateY(-1px); }
       `}</style>
     </>
   );
